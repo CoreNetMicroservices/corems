@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="src/aspire/CoreMs.AppHost/CoreMs.AppHost.csproj" />
+    <Project Path="src/aspire/CoreMs.ServiceDefaults/CoreMs.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/common/">
+    <Project Path="src/common/CoreMs.Common.Contracts/CoreMs.Common.Contracts.csproj" />
+    <Project Path="src/common/CoreMs.Common.Security/CoreMs.Common.Security.csproj" />
+    <Project Path="src/common/CoreMs.Common/CoreMs.Common.csproj" />
+  </Folder>
+  <Folder Name="/user-ms/">
+    <Project Path="src/user-ms/CoreMs.UserMs.Api/CoreMs.UserMs.Api.csproj" />
+    <Project Path="src/user-ms/CoreMs.UserMs.Domain/CoreMs.UserMs.Domain.csproj" />
+    <Project Path="src/user-ms/CoreMs.UserMs.Infrastructure/CoreMs.UserMs.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CoreMs.Common.Tests/CoreMs.Common.Tests.csproj" />
+    <Project Path="tests/CoreMs.UserMs.Tests/CoreMs.UserMs.Tests.csproj" />
+    <Project Path="tests/CoreMs.UserMs.IntegrationTests/CoreMs.UserMs.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

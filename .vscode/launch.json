@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "user-ms",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/user-ms/src/CoreMs.UserMs.Api/bin/Debug/net10.0/CoreMs.UserMs.Api.dll",
+      "cwd": "${workspaceFolder}/src/user-ms/src/CoreMs.UserMs.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}

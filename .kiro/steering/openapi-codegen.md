@@ -1,16 +1,16 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "**/{Controllers,Contracts}/**/*.cs"
+fileMatchPattern: "**/{Controllers,Contracts,Models}/**/*.cs"
 ---
 
-# API Contracts & Code Generation (.NET)
+# API Contracts & Controllers (.NET)
 
-## Approach: Contract-First with Interfaces
+## Approach: Code-First with Swagger Generation
 
-In .NET, instead of OpenAPI codegen (Java approach), we use:
-1. **Shared DTO contracts** in `CoreMs.Common.Api` or service-specific contract projects
-2. **Controller interfaces** (optional) for type safety
-3. **Swagger/OpenAPI generation** from code (Swashbuckle or NSwag)
+In .NET CoreMS, we use code-first approach:
+1. **DTOs (Models)** in `CoreMs.<Service>Ms.Core/Models/`
+2. **Controllers** with XML docs and ProducesResponseType attributes
+3. **Swagger/OpenAPI generation** from code via Swashbuckle
 
 ## Controller Pattern
 
@@ -18,15 +18,8 @@ In .NET, instead of OpenAPI codegen (Java approach), we use:
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class UsersController : ControllerBase
+public class UsersController(UserService userService) : ControllerBase
 {
-    private readonly IUserService _userService;
-
-    public UsersController(IUserService userService)
-    {
-        _userService = userService;
-    }
-
     /// <summary>
     /// Get paginated list of users (Admin only)
     /// </summary>
@@ -38,7 +31,7 @@ public class UsersController : ControllerBase
         [FromQuery] QueryParameters parameters,
         CancellationToken ct)
     {
-        var result = await _userService.GetUsersAsync(parameters, ct);
+        var result = await userService.GetUsersAsync(parameters, ct);
         return Ok(result);
     }
 
@@ -51,15 +44,21 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserInfoDto>> GetUser(Guid userId, CancellationToken ct)
     {
-        var result = await _userService.GetUserByUuidAsync(userId, ct);
+        var result = await userService.GetUserByUuidAsync(userId, ct);
         return Ok(result);
     }
 }
 ```
 
+### Controller Conventions
+- Use primary constructor for dependency injection
+- Inject concrete service classes (no interfaces needed — they use `[Service]` attribute)
+- Use `CancellationToken ct` as last parameter on all async actions
+- Use `[FromQuery]` for query parameters, route constraints for path params
+
 ## DTO Conventions
 
-### Request DTOs
+### Request Models (in Core/Models/)
 ```csharp
 public record SignUpRequest
 {
@@ -71,7 +70,7 @@ public record SignUpRequest
 }
 ```
 
-### Response DTOs
+### Response Models (in Core/Models/)
 ```csharp
 public record UserInfoDto
 {
@@ -88,14 +87,14 @@ public record UserInfoDto
 
 ### Rules
 - Use `record` types for DTOs (immutable, value equality)
-- Use `required` keyword for mandatory fields
+- Use `required` keyword for mandatory request fields
 - Use `init` accessors (not `set`)
 - Use nullable reference types for optional fields
-- Place DTOs in the Domain layer (or a shared Contracts project)
+- Place all models in `CoreMs.<Service>Ms.Core/Models/`
 
-## Validation
+## Validation (FluentValidation)
 
-Use FluentValidation for request validation:
+Validators live in `CoreMs.<Service>Ms.Api/Validators/`:
 
 ```csharp
 public class SignUpRequestValidator : AbstractValidator<SignUpRequest>
@@ -120,7 +119,19 @@ public class SignUpRequestValidator : AbstractValidator<SignUpRequest>
 
 Register validators:
 ```csharp
-builder.Services.AddValidatorsFromAssemblyContaining<SignUpRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+```
+
+### ValidationFilter
+
+A custom action filter in `Api/Filters/` runs FluentValidation before controller actions:
+
+```csharp
+// Registered in AddControllers options
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidationFilter>();
+});
 ```
 
 ## Swagger Configuration
@@ -153,7 +164,6 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
-    // Include XML comments
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
@@ -166,7 +176,7 @@ For generating typed clients from other services' Swagger:
 
 ```bash
 # Using NSwag CLI
-nswag openapi2csclient /input:http://localhost:5004/swagger/v1/swagger.json /output:TemplateMsClient.cs /namespace:CoreMs.CommunicationMs.Infrastructure.Clients
+nswag openapi2csclient /input:http://localhost:5104/swagger/v1/swagger.json /output:TemplateMsClient.cs /namespace:CoreMs.CommunicationMs.Core.Clients
 ```
 
 Or use Refit for declarative HTTP clients:
@@ -177,7 +187,6 @@ public interface ITemplateMsApi
     Task<RenderedTemplateResponse> RenderTemplateAsync([Body] RenderTemplateRequest request);
 }
 
-// Registration
 builder.Services.AddRefitClient<ITemplateMsApi>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri(config["ServiceUrls:TemplateMs"]!));
 ```

@@ -15,12 +15,16 @@ CoreMS uses EF Core Migrations for schema management. Each service has its own D
 src/<service>-ms/CoreMs.<Service>Ms.Infrastructure/
 ├── Data/
 │   ├── <Service>MsDbContext.cs
-│   └── <Entity>EntityConfiguration.cs
-├── Repositories/
+│   ├── Configurations/
+│   │   └── <Entity>EntityConfiguration.cs
+│   ├── DesignTimeDbContextFactory.cs
+│   └── SeedData.cs
 └── Migrations/
-    ├── 20240101000000_InitialCreate.cs
+    ├── 20250527112712_InitialCreate.cs
     └── <Service>MsDbContextModelSnapshot.cs
 ```
+
+Note: Repositories live in `CoreMs.<Service>Ms.Core/Repositories/`, not Infrastructure.
 
 ## Schemas
 
@@ -50,32 +54,34 @@ The base `CoreMsDbContext` handles:
 ```powershell
 # Add a new migration
 dotnet ef migrations add <MigrationName> `
-    --project src/user-ms/CoreMs.UserMs.Infrastructure `
-    --startup-project src/user-ms/CoreMs.UserMs.Api
+    --project user-ms/src/CoreMs.UserMs.Infrastructure `
+    --startup-project user-ms/src/CoreMs.UserMs.Api
 
 # Apply migrations
 dotnet ef database update `
-    --project src/user-ms/CoreMs.UserMs.Infrastructure `
-    --startup-project src/user-ms/CoreMs.UserMs.Api
+    --project user-ms/src/CoreMs.UserMs.Infrastructure `
+    --startup-project user-ms/src/CoreMs.UserMs.Api
 
 # Remove last migration (if not applied)
 dotnet ef migrations remove `
-    --project src/user-ms/CoreMs.UserMs.Infrastructure `
-    --startup-project src/user-ms/CoreMs.UserMs.Api
+    --project user-ms/src/CoreMs.UserMs.Infrastructure `
+    --startup-project user-ms/src/CoreMs.UserMs.Api
 
 # Generate SQL script (for production)
 dotnet ef migrations script `
-    --project src/user-ms/CoreMs.UserMs.Infrastructure `
-    --startup-project src/user-ms/CoreMs.UserMs.Api `
+    --project user-ms/src/CoreMs.UserMs.Infrastructure `
+    --startup-project user-ms/src/CoreMs.UserMs.Api `
     --output migrations/user_ms.sql
 ```
 
 ### For other services, replace paths:
 ```powershell
 dotnet ef migrations add <Name> `
-    --project src/<service>-ms/CoreMs.<Service>Ms.Infrastructure `
-    --startup-project src/<service>-ms/CoreMs.<Service>Ms.Api
+    --project <service>-ms/src/CoreMs.<Service>Ms.Infrastructure `
+    --startup-project <service>-ms/src/CoreMs.<Service>Ms.Api
 ```
+
+All commands run from the `backend/` directory.
 
 ## Naming Conventions
 

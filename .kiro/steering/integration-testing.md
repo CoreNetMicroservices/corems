@@ -10,184 +10,195 @@ Integration tests verify the full request/response cycle through the actual HTTP
 
 ## Test Structure
 
-### Use WebApplicationFactory with HttpClient
-```csharp
-public class UserMsIntegrationTests : IClassFixture<CustomWebApplicationFactory>
-{
-    private readonly HttpClient _client;
-    private readonly CustomWebApplicationFactory _factory;
+### CustomWebApplicationFactory
 
-    public UserMsIntegrationTests(CustomWebApplicationFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
-}
-```
-
-### Custom WebApplicationFactory
 ```csharp
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
+    private readonly string _dbName = $"TestDb_{Guid.NewGuid()}";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureServices(services =>
         {
-            // Replace real DB with Testcontainers PostgreSQL
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<UserMsDbContext>));
-            if (descriptor != null) services.Remove(descriptor);
-
+            // Replace real DB with in-memory database
+            // Remove real DbContext registrations
             services.AddDbContext<UserMsDbContext>(options =>
-                options.UseNpgsql(TestDatabaseConnection));
+                options.UseInMemoryDatabase(_dbName));
+            services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<UserMsDbContext>());
+            services.AddScoped<DbContext>(sp => sp.GetRequiredService<UserMsDbContext>());
+
+            // Stub external dependencies (NotificationService, etc.)
+            services.AddScoped(_ => Substitute.For<INotificationService>());
+
+            // Replace authentication with test handler
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+            })
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.SchemeName, _ => { });
+
+            // Remove hosted services to avoid background interference
         });
     }
+
+    public HttpClient CreateAdminClient()
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", $"{Guid.NewGuid()}|USER_MS_ADMIN");
+        return client;
+    }
+
+    public HttpClient CreateClientWithRoles(Guid userId, params string[] roles)
+    {
+        var client = CreateClient();
+        var rolesStr = string.Join(",", roles);
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", $"{userId}|{rolesStr}");
+        return client;
+    }
+
+    public HttpClient CreateAnonymousClient() => CreateClient();
 }
 ```
 
-### Authentication in Integration Tests
+### Test Authentication Handler
 
-**CRITICAL**: Use real authentication flow — don't mock JWT tokens for integration tests.
+The `TestAuthHandler` parses the Bearer token as `{userId}|{roles}` and creates claims:
 
 ```csharp
-// ✅ Correct - Use real authentication flow
-private async Task<string> CreateUserAndAuthenticate()
+public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    var signUpRequest = new SignUpRequest { Email = "test@example.com", Password = "Test123!" };
-    await _client.PostAsJsonAsync("/api/auth/signup", signUpRequest);
+    public const string SchemeName = "TestScheme";
 
-    var signInRequest = new SignInRequest { Email = "test@example.com", Password = "Test123!" };
-    var response = await _client.PostAsJsonAsync("/oauth2/token", signInRequest);
-    var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (!Request.Headers.ContainsKey("Authorization"))
+            return Task.FromResult(AuthenticateResult.NoResult());
 
-    _client.DefaultRequestHeaders.Authorization =
-        new AuthenticationHeaderValue("Bearer", tokenResponse!.AccessToken);
+        var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        var parts = token.Split('|');
+        var userId = parts[0];
+        var roles = parts.Length > 1 ? parts[1].Split(',') : Array.Empty<string>();
 
-    return tokenResponse.AccessToken;
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId) };
+        claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
+
+        var identity = new ClaimsIdentity(claims, SchemeName);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, SchemeName);
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
 }
-
-// ❌ Wrong - Don't use fake/mocked tokens
-_client.DefaultRequestHeaders.Authorization =
-    new AuthenticationHeaderValue("Bearer", "fake-token-here");
 ```
 
-### Public vs Protected Endpoints
+## Writing Tests
 
-**Public endpoints** (no auth required):
-- `/api/auth/signup`
-- `/api/auth/verify-email`
-- `/oauth2/token`
-- Test directly without authentication setup
-
-**Protected endpoints** (auth required):
-- Call `CreateUserAndAuthenticate()` first
-- Token is set on `HttpClient.DefaultRequestHeaders`
-
-## Test Annotations & Organization
-
+### Test Class Structure
 ```csharp
-[Collection("Integration")]
-public class UserApiIntegrationTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
+public class UserApiTests : IClassFixture<CustomWebApplicationFactory>
 {
-    private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
+    private readonly HttpClient _adminClient;
 
-    public UserApiIntegrationTests(CustomWebApplicationFactory factory)
+    public UserApiTests(CustomWebApplicationFactory factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory;
+        _adminClient = factory.CreateAdminClient();
     }
-
-    public async Task InitializeAsync()
-    {
-        // Setup: create test user, authenticate, etc.
-        await CreateUserAndAuthenticate();
-    }
-
-    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
-    public async Task GetCurrentUser_WhenAuthenticated_ReturnsUserInfo()
+    public async Task CreateUser_WithValidData_ReturnsCreated()
     {
-        var response = await _client.GetAsync("/api/profile");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var request = new CreateUserRequest
+        {
+            Email = $"test{Guid.NewGuid():N}@example.com",
+            Password = "TestPassword123!",
+            FirstName = "Test",
+            LastName = "User"
+        };
 
-        var user = await response.Content.ReadFromJsonAsync<UserInfoDto>();
+        var response = await _adminClient.PostAsJsonAsync("/api/users", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var user = await response.Content.ReadFromJsonAsync<UserCreatedDto>();
         user.Should().NotBeNull();
-        user!.Email.Should().Be("test@example.com");
+        user!.Email.Should().Be(request.Email);
     }
 }
 ```
 
-## Exception Handling in Tests
-
+### Testing Protected Endpoints
 ```csharp
 [Fact]
-public async Task SignIn_WithInvalidCredentials_Returns400()
+public async Task GetUsers_AsAdmin_ReturnsOk()
 {
-    var request = new SignInRequest { Email = "wrong@example.com", Password = "wrong" };
-    var response = await _client.PostAsJsonAsync("/oauth2/token", request);
-
-    response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-    var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-    error!.ReasonCode.Should().Be("user.invalid_credentials");
+    var client = _factory.CreateAdminClient();
+    var response = await client.GetAsync("/api/users");
+    response.StatusCode.Should().Be(HttpStatusCode.OK);
 }
-```
 
-## Test Organization
-
-Group tests by endpoint type:
-1. **Public Endpoints**: No auth required (signup, signin, verify)
-2. **Protected Endpoints**: Require authentication (profile, user management)
-3. **Unauthorized Access Tests**: Verify 401 responses without token
-
-## Common Patterns
-
-### Test Data Setup
-```csharp
-private SignUpRequest CreateUniqueSignUpRequest()
-{
-    var uniqueEmail = $"testuser{Guid.NewGuid():N}@example.com";
-    return new SignUpRequest
-    {
-        Email = uniqueEmail,
-        Password = "TestPassword123!",
-        FirstName = "Test",
-        LastName = "User"
-    };
-}
-```
-
-### Verifying Unauthorized Access
-```csharp
 [Fact]
-public async Task ProtectedEndpoint_WithoutToken_Returns401()
+public async Task GetUsers_AsAnonymous_Returns401()
 {
-    var client = _factory.CreateClient(); // Fresh client, no auth header
-    var response = await client.GetAsync("/api/profile");
+    var client = _factory.CreateAnonymousClient();
+    var response = await client.GetAsync("/api/users");
     response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 }
+
+[Fact]
+public async Task GetUsers_AsRegularUser_Returns403()
+{
+    var client = _factory.CreateClientWithRoles(Guid.NewGuid(), CoreMsRoles.UserMsUser);
+    var response = await client.GetAsync("/api/users");
+    response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+}
 ```
+
+### Testing Error Responses
+```csharp
+[Fact]
+public async Task CreateUser_WithDuplicateEmail_Returns409()
+{
+    var email = $"dup{Guid.NewGuid():N}@example.com";
+    var request = new CreateUserRequest { Email = email, Password = "Pass123!" };
+
+    await _adminClient.PostAsJsonAsync("/api/users", request);
+    var response = await _adminClient.PostAsJsonAsync("/api/users", request);
+
+    response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+    error!.Errors[0].ReasonCode.Should().Be("user.exists");
+}
+```
+
+## Test Data
+
+### Unique Test Data
+Always use unique identifiers to avoid test interference:
+```csharp
+var uniqueEmail = $"testuser{Guid.NewGuid():N}@example.com";
+```
+
+### Database Isolation
+Each `CustomWebApplicationFactory` instance creates a unique in-memory database (`TestDb_{Guid}`), so test classes are isolated from each other.
 
 ## Testing Libraries
 - **xUnit**: Test framework
 - **FluentAssertions**: Readable assertions (`.Should().Be()`)
-- **Testcontainers**: Real PostgreSQL for integration tests
-- **Bogus**: Fake data generation (optional)
+- **NSubstitute**: Mocking (for external services)
+- **Microsoft.AspNetCore.Mvc.Testing**: WebApplicationFactory
 
-## Testcontainers Setup
-```csharp
-public class PostgresFixture : IAsyncLifetime
-{
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-        .WithImage("postgres:16")
-        .WithDatabase("corems_test")
-        .WithUsername("test")
-        .WithPassword("test")
-        .Build();
+## Key Patterns
 
-    public string ConnectionString => _container.GetConnectionString();
-
-    public async Task InitializeAsync() => await _container.StartAsync();
-    public async Task DisposeAsync() => await _container.DisposeAsync();
-}
-```
+1. **No real database** — uses EF Core InMemory provider for speed
+2. **Test auth handler** — injects any user identity/roles without real JWT
+3. **Stub external services** — mock NotificationService and other outbound calls
+4. **No background services** — hosted services are removed to avoid interference
+5. **Health checks simplified** — real infrastructure health checks are replaced

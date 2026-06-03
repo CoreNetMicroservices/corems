@@ -12,10 +12,10 @@ This guide explains how to integrate one microservice with another in the CoreMS
 
 ### 1. Create a Typed HttpClient Interface
 
-Define the client contract in the calling service's Domain layer:
+Define the client contract in the calling service's Core layer:
 
 ```csharp
-// In CoreMs.CommunicationMs.Domain/Interfaces/ITemplateMsClient.cs
+// In CoreMs.CommunicationMs.Core/Clients/ITemplateMsClient.cs
 public interface ITemplateMsClient
 {
     Task<RenderedTemplateResponse> RenderTemplateAsync(
@@ -26,7 +26,7 @@ public interface ITemplateMsClient
 ### 2. Implement the Typed HttpClient
 
 ```csharp
-// In CoreMs.CommunicationMs.Infrastructure/HttpClients/TemplateMsClient.cs
+// In CoreMs.CommunicationMs.Core/Clients/TemplateMsClient.cs
 public class TemplateMsClient : ITemplateMsClient
 {
     private readonly HttpClient _httpClient;
@@ -56,7 +56,7 @@ public class TemplateMsClient : ITemplateMsClient
 builder.Services.AddHttpClient<ITemplateMsClient, TemplateMsClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:TemplateMs"]
-        ?? "http://localhost:5004");
+        ?? "http://localhost:5104");
 });
 ```
 
@@ -65,11 +65,11 @@ builder.Services.AddHttpClient<ITemplateMsClient, TemplateMsClient>(client =>
 ```json
 {
   "ServiceUrls": {
-    "TemplateMs": "http://localhost:5004",
-    "UserMs": "http://localhost:5000",
-    "CommunicationMs": "http://localhost:5001",
-    "DocumentMs": "http://localhost:5002",
-    "TranslationMs": "http://localhost:5003"
+    "TemplateMs": "http://localhost:5104",
+    "UserMs": "http://localhost:5100",
+    "CommunicationMs": "http://localhost:5101",
+    "DocumentMs": "http://localhost:5102",
+    "TranslationMs": "http://localhost:5103"
   }
 }
 ```
@@ -78,26 +78,21 @@ builder.Services.AddHttpClient<ITemplateMsClient, TemplateMsClient>(client =>
 
 ```yaml
 environment:
-  - ServiceUrls__TemplateMs=http://template-ms:5004
+  - ServiceUrls__TemplateMs=http://template-ms:5104
 ```
 
 ### 6. Use in Service Layer
 
 ```csharp
-public class EmailService
+[Service]
+public class EmailService(ITemplateMsClient templateClient)
 {
-    private readonly ITemplateMsClient _templateClient;
-
-    public EmailService(ITemplateMsClient templateClient)
+    public async Task SendWelcomeEmail(string email, string firstName, CancellationToken ct = default)
     {
-        _templateClient = templateClient;
-    }
-
-    public async Task SendWelcomeEmail(string email, string firstName)
-    {
-        var rendered = await _templateClient.RenderTemplateAsync(
+        var rendered = await templateClient.RenderTemplateAsync(
             "welcome-email",
-            new Dictionary<string, object> { ["firstName"] = firstName });
+            new Dictionary<string, object> { ["firstName"] = firstName },
+            ct);
 
         // Send email with rendered.Content
     }
@@ -108,11 +103,11 @@ public class EmailService
 
 | Service | Port |
 |---------|------|
-| User Service | 5000 |
-| Communication Service | 5001 |
-| Document Service | 5002 |
-| Translation Service | 5003 |
-| Template Service | 5004 |
+| User Service | 5100 |
+| Communication Service | 5101 |
+| Document Service | 5102 |
+| Translation Service | 5103 |
+| Template Service | 5104 |
 
 ## Error Handling
 
@@ -130,7 +125,7 @@ public async Task<RenderedTemplateResponse> RenderTemplateAsync(
     {
         _logger.LogError(ex, "Failed to call Template service for template {TemplateId}", templateId);
         throw ServiceException.Of(
-            CommunicationExceptionCodes.ExternalServiceError,
+            CommunicationServiceExceptionCodes.ExternalServiceError,
             $"Failed to render template: {ex.Message}");
     }
 }
@@ -153,11 +148,11 @@ builder.Services.AddHttpClient<ITemplateMsClient, TemplateMsClient>(client =>
 Mock the client interface in unit tests:
 
 ```csharp
-var mockClient = new Mock<ITemplateMsClient>();
-mockClient.Setup(c => c.RenderTemplateAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, object>>(), default))
-    .ReturnsAsync(new RenderedTemplateResponse { Content = "<html>Hello</html>" });
+var mockClient = Substitute.For<ITemplateMsClient>();
+mockClient.RenderTemplateAsync(Arg.Any<string>(), Arg.Any<Dictionary<string, object>>(), default)
+    .Returns(new RenderedTemplateResponse { Content = "<html>Hello</html>" });
 
-var service = new EmailService(mockClient.Object);
+var service = new EmailService(mockClient);
 ```
 
 For integration tests, use `WireMock.Net` to stub external service responses:

@@ -36,10 +36,10 @@ public class ServiceException : Exception
 
 ```csharp
 // Simple — uses ErrorInfo description
-throw ServiceException.Of(DefaultErrors.NotFound);
+throw ServiceException.Of(DefaultExceptionCodes.NotFound);
 
 // With details — adds context without changing the reason code
-throw ServiceException.Of(UserErrors.UserNotFound, $"No user with email '{email}'");
+throw ServiceException.Of(UserServiceExceptionCodes.UserNotFound, $"No user with email '{email}'");
 
 // Multiple errors at once
 throw ServiceException.Of(errors, 400);
@@ -47,10 +47,10 @@ throw ServiceException.Of(errors, 400);
 
 ## Defining Error Codes
 
-### Common errors (`DefaultErrors` in CoreMs.Common)
+### Common errors (`DefaultExceptionCodes` in CoreMs.Common)
 
 ```csharp
-public static class DefaultErrors
+public static class DefaultExceptionCodes
 {
     public static readonly ErrorInfo ServerError = new("server.error", 500, "Unexpected error. Try again later.");
     public static readonly ErrorInfo NotFound = new("resource.not.found", 404, "Resource is not found");
@@ -63,10 +63,11 @@ public static class DefaultErrors
 }
 ```
 
-### Service-specific errors (in Domain layer)
+### Service-specific errors (in Core layer)
 
 ```csharp
-public static class UserErrors
+// CoreMs.UserMs.Core/Exceptions/UserServiceExceptionCodes.cs
+public static class UserServiceExceptionCodes
 {
     public static readonly ErrorInfo UserExists = new("user.exists", 409, "User already exists");
     public static readonly ErrorInfo UserNotFound = new("user.not_found", 404, "User not found");
@@ -112,7 +113,7 @@ Located in `CoreMs.Common.Middleware`. Implements `IExceptionHandler` and handle
 
 1. **Never create custom exception classes** — always use `ServiceException.Of(ErrorInfo, details?)`
 2. **Never use enums with attributes** — use `static readonly ErrorInfo` fields
-3. **One error class per service** — e.g., `UserErrors`, `TemplateErrors`
-4. **Place error classes in Domain layer** — `CoreMs.<Service>Ms.Domain/Exceptions/`
-5. **Use `DefaultErrors` for generic cases** — don't redefine common codes per service
+3. **One error class per service** — e.g., `UserServiceExceptionCodes`, `TemplateServiceExceptionCodes`
+4. **Place error classes in Core layer** — `CoreMs.<Service>Ms.Core/Exceptions/`
+5. **Use `DefaultExceptionCodes` for generic cases** — don't redefine common codes per service
 6. **Log before throwing** when wrapping external exceptions

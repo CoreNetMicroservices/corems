@@ -32,7 +32,7 @@ public class UserEntity
 
 ## EF Core Configuration (Fluent API Only)
 
-Each entity gets a separate `IEntityTypeConfiguration<T>` class in the Infrastructure layer:
+Each entity gets a separate `IEntityTypeConfiguration<T>` class in the **Infrastructure** layer (`Data/Configurations/`):
 
 ```csharp
 public class UserEntityConfiguration : IEntityTypeConfiguration<UserEntity>
@@ -63,7 +63,7 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<UserEntity>
 
 ## DbContext
 
-`CoreMsDbContext` is the abstract base class. Each service creates a one-liner subclass:
+`CoreMsDbContext` is the abstract base class in `CoreMs.Common.Data`. Each service creates a one-liner subclass in **Infrastructure/Data/**:
 
 ```csharp
 // Base class in CoreMs.Common.Data
@@ -79,7 +79,7 @@ public abstract class CoreMsDbContext : DbContext
     }
 }
 
-// Service-specific — one liner
+// Service-specific — one liner in Infrastructure/Data/
 public class UserMsDbContext(DbContextOptions<UserMsDbContext> options) : CoreMsDbContext(options)
 {
     protected override string SchemaName => "user_ms";
@@ -88,32 +88,24 @@ public class UserMsDbContext(DbContextOptions<UserMsDbContext> options) : CoreMs
 
 No `DbSet<T>` properties needed — access entities via `Set<T>()` in repositories.
 
+## Repository Location
+
+**Repositories live in the Core layer** (`CoreMs.<Service>Ms.Core/Repositories/`), not Infrastructure.
+
+They take `DbContext` via constructor injection and are registered via `[Repository]` attribute.
+
 ## Repository Hierarchy
 
 ```
-ICrudRepository<T>           — basic CRUD (Query layer)
-  └─ ISearchableRepository<T>  — adds GetPagedAsync (Query layer)
-       └─ IUserRepository       — service-specific methods (Domain layer)
+CrudRepository<T>              — basic CRUD (CoreMs.Common.Repository)
+  └─ SearchableRepository<T>   — adds GetPagedAsync with search/filter/sort
+       └─ UserRepository        — service-specific methods (Core layer)
 ```
-
-### ICrudRepository<T>
-
-```csharp
-public interface ICrudRepository<TEntity> where TEntity : class
-{
-    Task<TEntity?> GetByIdAsync(long id, CancellationToken ct = default);
-    void Add(TEntity entity);
-    void Update(TEntity entity);
-    void Remove(TEntity entity);
-}
-```
-
-`Add`, `Update`, `Remove` are **synchronous** — they only track changes in memory. Actual DB write happens via auto-save middleware.
 
 ### CrudRepository<T>
 
 ```csharp
-public abstract class CrudRepository<TEntity>(DbContext context) : ICrudRepository<TEntity>
+public abstract class CrudRepository<TEntity>(DbContext context)
     where TEntity : class
 {
     protected readonly DbContext Context = context;
@@ -128,15 +120,16 @@ public abstract class CrudRepository<TEntity>(DbContext context) : ICrudReposito
 }
 ```
 
+`Add`, `Update`, `Remove` are **synchronous** — they only track changes in memory. Actual DB write happens via auto-save middleware.
+
 ### SearchableRepository<T>
 
 Extends `CrudRepository<T>` with dynamic search, filter, sort, and pagination. Subclasses declare:
 
 ```csharp
-public class UserRepository : SearchableRepository<UserEntity>, IUserRepository
+[Repository]
+public class UserRepository(DbContext context) : SearchableRepository<UserEntity>(context)
 {
-    public UserRepository(UserMsDbContext context) : base(context) { }
-
     protected override IReadOnlySet<string> SearchFields => new HashSet<string> { "Email", "FirstName", "LastName" };
     protected override IReadOnlySet<string> SortFields => new HashSet<string> { "CreatedAt", "Email", "FirstName", "LastName" };
     protected override IReadOnlySet<string> FilterFields => new HashSet<string> { "Provider", "EmailVerified", "CreatedAt" };
@@ -144,8 +137,14 @@ public class UserRepository : SearchableRepository<UserEntity>, IUserRepository
     protected override IQueryable<UserEntity> BaseQuery() => DbSet.Include(u => u.Roles);
 
     // Service-specific queries
-    public async Task<UserEntity?> GetByUuidAsync(Guid uuid, CancellationToken ct = default)
+    public virtual async Task<UserEntity?> GetByUuidAsync(Guid uuid, CancellationToken ct = default)
         => await DbSet.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Uuid == uuid, ct);
+
+    public virtual async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken ct = default)
+        => await DbSet.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == email, ct);
+
+    public virtual async Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default)
+        => await DbSet.AnyAsync(u => u.Email == email, ct);
 }
 ```
 
@@ -192,17 +191,6 @@ Examples:
 - `email:asc` — sort by email ascending
 - Default (no sort param): first SortField descending
 
-## Service-Specific Repository Interface (Domain Layer)
-
-```csharp
-public interface IUserRepository : ISearchableRepository<UserEntity>
-{
-    Task<UserEntity?> GetByUuidAsync(Guid uuid, CancellationToken ct = default);
-    Task<UserEntity?> GetByEmailAsync(string email, CancellationToken ct = default);
-    Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
-}
-```
-
 ## Rules
 
 1. **No EF attributes on entities** — Fluent API only
@@ -212,3 +200,6 @@ public interface IUserRepository : ISearchableRepository<UserEntity>
 5. **Use `FirstOrDefaultAsync`** (not `SingleOrDefaultAsync`) for lookups
 6. **Use `AnyAsync`** for existence checks
 7. **One repository per aggregate root**
+8. **Repositories live in Core layer** — not Infrastructure
+9. **Use `[Repository]` attribute** for auto-registration
+10. **Use `virtual` on query methods** — enables mocking in tests

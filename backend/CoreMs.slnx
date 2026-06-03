@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspire/CoreMs.AppHost/CoreMs.AppHost.csproj" />
+    <Project Path="aspire/CoreMs.ServiceDefaults/CoreMs.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/common/src/">
+    <Project Path="common/src/CoreMs.Common/CoreMs.Common.csproj" />
+    <Project Path="common/src/CoreMs.Common.Contracts/CoreMs.Common.Contracts.csproj" />
+    <Project Path="common/src/CoreMs.Common.Security/CoreMs.Common.Security.csproj" />
+  </Folder>
+  <Folder Name="/common/test/">
+    <Project Path="common/test/CoreMs.Common.Tests/CoreMs.Common.Tests.csproj" />
+  </Folder>
+  <Folder Name="/user-ms/src/">
+    <Project Path="user-ms/src/CoreMs.UserMs.Api/CoreMs.UserMs.Api.csproj" />
+    <Project Path="user-ms/src/CoreMs.UserMs.Core/CoreMs.UserMs.Core.csproj" />
+    <Project Path="user-ms/src/CoreMs.UserMs.Infrastructure/CoreMs.UserMs.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/user-ms/test/">
+    <Project Path="user-ms/test/CoreMs.UserMs.Tests/CoreMs.UserMs.Tests.csproj" />
+    <Project Path="user-ms/test/CoreMs.UserMs.IntegrationTests/CoreMs.UserMs.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

@@ -24,10 +24,8 @@ Async/await allows handling thousands of concurrent requests without blocking th
 ### ✅ DO: Use Async for All I/O
 
 ```csharp
-public async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken ct = default)
-{
-    return await _context.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-}
+public virtual async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken ct = default)
+    => await DbSet.FirstOrDefaultAsync(u => u.Email == email, ct);
 ```
 
 ### ✅ DO: Pass CancellationToken Everywhere
@@ -36,7 +34,7 @@ public async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken c
 [HttpGet("{userId:guid}")]
 public async Task<ActionResult<UserInfoDto>> GetUser(Guid userId, CancellationToken ct)
 {
-    var user = await _userService.GetUserByUuidAsync(userId, ct);
+    var user = await userService.GetUserByUuidAsync(userId, ct);
     return Ok(user);
 }
 ```
@@ -44,10 +42,10 @@ public async Task<ActionResult<UserInfoDto>> GetUser(Guid userId, CancellationTo
 ### ✅ DO: Use ConfigureAwait(false) in Library Code
 
 ```csharp
-// In CoreMs.Common or Infrastructure layers (not in Controllers)
+// In CoreMs.Common layers (not in Controllers or services that need HttpContext)
 public async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken ct = default)
 {
-    return await _context.Users
+    return await DbSet
         .FirstOrDefaultAsync(u => u.Email == email, ct)
         .ConfigureAwait(false);
 }
@@ -57,11 +55,11 @@ public async Task<UserEntity?> GetByEmailAsync(string email, CancellationToken c
 
 ```csharp
 // WRONG - causes deadlocks
-var user = _userService.GetUserByUuidAsync(userId).Result;
-var user = _userService.GetUserByUuidAsync(userId).GetAwaiter().GetResult();
+var user = userService.GetUserByUuidAsync(userId).Result;
+var user = userService.GetUserByUuidAsync(userId).GetAwaiter().GetResult();
 
 // CORRECT
-var user = await _userService.GetUserByUuidAsync(userId, ct);
+var user = await userService.GetUserByUuidAsync(userId, ct);
 ```
 
 ### ❌ DON'T: Use async void
@@ -79,9 +77,9 @@ public async Task SendEmailAsync(string to, string body, CancellationToken ct = 
 ```csharp
 public async Task<DashboardDto> GetDashboardAsync(Guid userId, CancellationToken ct)
 {
-    var userTask = _userService.GetUserByUuidAsync(userId, ct);
-    var docsTask = _documentClient.GetUserDocumentsAsync(userId, ct);
-    var notifsTask = _communicationClient.GetNotificationsAsync(userId, ct);
+    var userTask = userService.GetUserByUuidAsync(userId, ct);
+    var docsTask = documentClient.GetUserDocumentsAsync(userId, ct);
+    var notifsTask = communicationClient.GetNotificationsAsync(userId, ct);
 
     await Task.WhenAll(userTask, docsTask, notifsTask);
 
@@ -97,8 +95,8 @@ public async Task<DashboardDto> GetDashboardAsync(Guid userId, CancellationToken
 ## Naming Convention
 
 - All async methods MUST end with `Async` suffix
-- ✅ `GetUserByUuidAsync`, `SendEmailAsync`, `RenderTemplateAsync`
-- ❌ `GetUserByUuid`, `SendEmail`, `RenderTemplate`
+- ✅ `GetUserByUuidAsync`, `SendEmailAsync`, `CleanupExpiredTokensAsync`
+- ❌ `GetUserByUuid`, `SendEmail`, `CleanupExpiredTokens`
 
 ## Performance Expectations
 
@@ -115,24 +113,49 @@ Both achieve similar goals (high concurrency for I/O-bound work):
 
 ## Background Tasks
 
-Use `IHostedService` or `BackgroundService` for long-running background work:
+Use `BackgroundService` for long-running background work. Place in `Api/Services/`:
 
 ```csharp
 public class TokenCleanupService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<TokenCleanupService> _logger;
+    private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
+
+    public TokenCleanupService(IServiceScopeFactory scopeFactory, ILogger<TokenCleanupService> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var repo = scope.ServiceProvider.GetRequiredService<ILoginTokenRepository>();
-            await repo.DeleteExpiredTokensAsync(stoppingToken);
-            await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+            try
+            {
+                await Task.Delay(Interval, stoppingToken);
+
+                using var scope = _scopeFactory.CreateScope();
+                var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+                await tokenService.CleanupExpiredTokensAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during token cleanup");
+            }
         }
     }
 }
+```
+
+Register in Program.cs:
+```csharp
+builder.Services.AddHostedService<TokenCleanupService>();
 ```
 
 ## Messaging (MassTransit)
@@ -140,11 +163,11 @@ public class TokenCleanupService : BackgroundService
 ```csharp
 public class SendEmailConsumer : IConsumer<SendEmailCommand>
 {
-    private readonly IEmailService _emailService;
+    private readonly NotificationService _notificationService;
 
     public async Task Consume(ConsumeContext<SendEmailCommand> context)
     {
-        await _emailService.SendAsync(context.Message, context.CancellationToken);
+        await _notificationService.SendAsync(context.Message, context.CancellationToken);
     }
 }
 ```

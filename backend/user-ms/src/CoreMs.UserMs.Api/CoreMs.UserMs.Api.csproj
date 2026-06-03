@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.UserMs.Api</RootNamespace>
+    <UserSecretsId>corems-userms-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoreMs.UserMs.Core\CoreMs.UserMs.Core.csproj" />
+    <ProjectReference Include="..\CoreMs.UserMs.Infrastructure\CoreMs.UserMs.Infrastructure.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Security\CoreMs.Common.Security.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
+    <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

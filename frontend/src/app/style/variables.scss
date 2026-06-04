@@ -1,0 +1,28 @@
+// Import Bootstrap with your custom variables
+// Bootstrap theming variables for easy color management
+$primary: #212529;
+$secondary: #6c757d;
+$success: #198754;
+$info: #0dcaf0;
+$warning: #ffc107;
+$danger: #dc3545;
+$light: #f8f9fa;
+$dark: #000000;
+
+$theme-colors: (
+  "primary": $primary,
+  "secondary": $secondary,
+  "success": $success,
+  "info": $info,
+  "warning": $warning,
+  "danger": $danger,
+  "light": $light,
+  "dark": $dark
+);
+
+$body-bg: $light;
+$body-color: $primary;
+$navbar-bg: $light;
+$navbar-color: $primary;
+$dropdown-link-active-bg: $primary;
+$dropdown-link-active-color: $light;

@@ -20,8 +20,14 @@ Thumbs.db
 
 # Environment
 .env
+.env.local
 appsettings.*.local.json
 
 # Test results
 TestResults/
 coverage/
+
+# Frontend
+node_modules/
+dist/
+*.tsbuildinfo

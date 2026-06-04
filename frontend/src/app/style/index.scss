@@ -1,0 +1,249 @@
+$primary: #212529;
+$secondary: #6c757d;
+$success: #198754;
+$info: #0dcaf0;
+$warning: #ffc107;
+$danger: #dc3545;
+$light: #f8f9fa;
+$dark: #000000;
+$white: #fdfdfd;
+
+$theme-colors: (
+  "primary": $primary,
+  "secondary": $secondary,
+  "success": $success,
+  "info": $info,
+  "warning": $warning,
+  "danger": $danger,
+  "light": $light,
+  "dark": $dark
+);
+
+$body-bg: $white;
+$body-color: $primary;
+$navbar-bg: $light;
+$navbar-color: $primary;
+$dropdown-link-active-bg: $secondary;
+$dropdown-link-active-color: $light;
+
+$btn-border-radius: 0.20rem;
+$btn-border-radius-sm: 0.20rem;
+$btn-border-radius-lg: 0.20rem;
+
+@import "bootstrap/scss/bootstrap";
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/* Slightly increase z-index for dropdowns inside filters so they appear above the table */
+.data-table-filters .dropdown-menu {
+  z-index: 1200;
+}
+
+/* DataTable filter focus styles: remove default focus outline, use subtle shadow */
+
+
+[data-bs-theme='light'] {
+  .navbar {
+    background-color: $light;
+  }
+
+  .form-select:focus,
+  .form-control:focus,
+  .form-control:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 0.1rem rgba(61, 68, 77, 0.4) !important;
+    border-color: rgba(61, 68, 77, 0.6) !important;
+  }
+
+  /* Ensure dropdown/select highlights in filters are neutral (gray) in light theme */
+  .data-table-filters {
+    /* Custom dropdown items (used by AsyncSelect's menu) */
+    .dropdown-menu {
+      .dropdown-item:hover,
+      .dropdown-item:focus,
+      .dropdown-item.active {
+        background-color: #c1c1c1 !important;
+        color: #212529 !important;
+      }
+      .dropdown-item .small {
+        color: #4d545a !important;
+      }
+    }
+  }
+}
+
+[data-bs-theme='dark'] {
+  /* GitHub-inspired soft dark theme (lighter overall) */
+  --bs-body-bg: #21272e; /* slightly lighter near-black */
+  --bs-body-color: #c9d1d9; /* muted text */
+  --bs-navbar-bg: #151920; /* header slightly lighter than body */
+  --bs-navbar-color: #d1d9e0;
+
+  --primary-dark: #58a6ff; /* GitHub blue */
+  --primary-dark-hover: #4197ff;
+  --primary-dark-active: #1f6feb;
+  --primary-dark-rgb: 88,166,255;
+
+  --bs-primary: var(--primary-dark);
+  --bs-primary-rgb: var(--primary-dark-rgb);
+  --bs-dropdown-link-active-bg: rgba(88,166,255,0.12);
+
+  .border-bottom {
+    border-color: rgba(203,213,225,0.05);
+  }
+
+  .navbar {
+    --bs-navbar-bg: #161b22;
+    --bs-navbar-color: var(--bs-navbar-color);
+    background-color: var(--bs-navbar-bg);
+
+    .nav-link.active, .nav-link.show {
+      color: var(--primary-dark-active);
+    }
+
+    .nav-link:focus, .nav-link:hover {
+      color: var(--primary-dark-hover);
+    }
+  }
+
+  .form-select:focus,
+  .form-control:focus,
+  .form-control:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 0.1rem rgba(var(--bs-primary-rgb), 0.4) !important;
+    border-color: rgba(var(--bs-primary-rgb), 0.6) !important;
+  }
+
+  /* Active list items: li.active, nav-item, list-group items */
+  li.active,
+  .nav-item.active,
+  .list-group-item.active {
+    background-color: rgba(var(--bs-primary-rgb), 0.14);
+    border-color: rgba(var(--bs-primary-rgb), 0.36);
+    color: #fff;
+  }
+
+  /* Links inside active list items should reflect the active color */
+  li.active > a,
+  .nav-item.active > .nav-link,
+  .list-group-item.active {
+    color: var(--primary-dark) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.14) !important;
+    border-color: rgba(var(--bs-primary-rgb), 0.36) !important;
+  }
+
+  .navbar-brand, .navbar-brand:focus, .navbar-brand:hover {
+    --bs-navbar-brand-color: var(--primary-dark-active);
+  }
+
+  .dropdown-item.active,
+  .dropdown-item:active {
+    --bs-dropdown-link-active-bg: rgba(31,111,235,0.12);
+  }
+
+  .btn-primary {
+    --bs-btn-bg: var(--primary-dark);
+    --bs-btn-border-color: rgba(var(--bs-primary-rgb), 0.12);
+    --bs-btn-hover-bg: var(--primary-dark-hover);
+    --bs-btn-hover-border-color: rgba(var(--bs-primary-rgb), 0.16);
+    --bs-btn-active-bg: var(--primary-dark-active);
+    --bs-btn-active-border-color: rgba(var(--bs-primary-rgb), 0.2);
+  }
+
+  .btn-outline-primary {
+    --bs-btn-color: var(--primary-dark);
+    /* Lighter, more visible outline */
+    --bs-btn-border-color: rgba(var(--bs-primary-rgb), 0.28);
+    --bs-btn-hover-bg: rgba(var(--bs-primary-rgb), 0.04);
+    --bs-btn-hover-border-color: rgba(var(--bs-primary-rgb), 0.16);
+
+    /* Focus ring for accessibility */
+    box-shadow: none;
+  }
+
+  .btn-outline-primary:focus, .btn-outline-primary.focus {
+    outline: none !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.12) !important;
+  }
+
+  /* Ensure disabled outline buttons remain visible */
+  .btn-outline-primary:disabled, .btn-outline-primary.disabled {
+    color: rgba(203,213,225,0.6);
+    border-color: rgba(203,213,225,0.08);
+    background-color: transparent;
+    opacity: 1; /* keep visible instead of Bootstrap's reduced opacity */
+  }
+
+  /* Active states: stronger blue background and border for visibility */
+  .btn-primary:active, .btn-primary.active {
+    background-color: var(--primary-dark-active) !important;
+    border-color: rgba(var(--bs-primary-rgb), 0.36) !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 0.12rem rgba(var(--bs-primary-rgb), 0.16) !important;
+  }
+
+    /* Make outline primary buttons visibly highlight on hover/focus across themes */
+    .btn-outline-primary {
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+  
+    .btn-outline-primary:hover,
+    .btn-outline-primary:focus {
+      /* Use primary color and its rgb when available; provide fallbacks for light theme */
+      color: var(--bs-primary, #0d6efd) !important;
+      background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.5) !important;
+      border-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.5) !important;
+    }
+  
+    /* Slightly stronger hover for active/pressed outline buttons */
+    .btn-outline-primary:active,
+    .btn-outline-primary.active {
+      background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.2) !important;
+      border-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.28) !important;
+      color: var(--bs-primary, #0d6efd) !important;
+    }
+  
+
+  /* Pagination (pager) styles */
+  .pagination {
+    .page-link {
+      color: var(--bs-body-color);
+      background-color: transparent;
+      border-color: rgba(203,213,225,0.04);
+    }
+
+    .page-link:hover, .page-link:focus {
+      background-color: rgba(var(--bs-primary-rgb), 0.08);
+      border-color: rgba(var(--bs-primary-rgb), 0.18);
+      color: var(--primary-dark);
+    }
+
+    .page-item.active .page-link {
+      background-color: rgba(var(--bs-primary-rgb), 0.16) !important;
+      border-color: rgba(var(--bs-primary-rgb), 0.36) !important;
+      color: #fff !important;
+    }
+
+    .page-item.disabled .page-link {
+      color: rgba(203,213,225,0.5);
+    }
+  }
+
+  /* Breadcrumb active item should not have background */
+  .breadcrumb-item.active {
+    background-color: transparent !important;
+  }
+}
+
+/* Hover effect for cards */
+.hover-shadow {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-shadow:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-bs-theme='dark'] .hover-shadow:hover {
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4) !important;
+}

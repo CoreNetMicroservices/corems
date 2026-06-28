@@ -144,4 +144,10 @@ public class OAuth2Service(
             .Replace("/", "_")
             .TrimEnd('=');
     }
+
+    public async Task<UserEntity> GetUserForInfoAsync(Guid userUuid, CancellationToken ct = default)
+    {
+        return await userRepository.GetByUuidAsync(userUuid, ct)
+            ?? throw ServiceException.Of(UserErrors.UserNotFound, "User not found");
+    }
 }

@@ -86,6 +86,9 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<UserMsDbContex
 // Auto-register services and repositories by convention ([Service] / [Repository])
 builder.Services.AddCoreMsServices(typeof(UserService).Assembly);
 
+// HTTP clients for social auth providers
+builder.Services.AddHttpClient();
+
 // FluentValidation — scan validators and register ValidationFilter
 builder.Services.AddCoreMsValidation(typeof(Program).Assembly);
 
@@ -107,6 +110,10 @@ builder.Services.AddOptions<OAuth2ClientOptions>()
 builder.Services.AddOptions<SocialAuthOptions>()
     .Bind(builder.Configuration.GetSection(SocialAuthOptions.SectionName))
     .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<OAuth2ProviderOptions>()
+    .Bind(builder.Configuration.GetSection(OAuth2ProviderOptions.SectionName))
     .ValidateOnStart();
 
 builder.Services.AddOptions<RabbitMqOptions>()

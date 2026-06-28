@@ -104,4 +104,33 @@ public class OAuth2Controller : ControllerBase
 
         return Ok();
     }
+
+    /// <summary>
+    /// OIDC UserInfo endpoint. Returns authenticated user's profile in OIDC format.
+    /// </summary>
+    [Authorize]
+    [HttpGet("userinfo")]
+    [Produces("application/json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UserInfo(CancellationToken ct)
+    {
+        var userUuid = _currentUserService.GetCurrentUserUuid();
+        var user = await _oauth2Service.GetUserForInfoAsync(userUuid, ct);
+
+        return Ok(new
+        {
+            sub = user.Uuid.ToString(),
+            email = user.Email,
+            email_verified = user.EmailVerified,
+            given_name = user.FirstName,
+            family_name = user.LastName,
+            phone_number = user.PhoneNumber,
+            phone_number_verified = user.PhoneVerified,
+            picture = user.ImageUrl,
+            updated_at = new DateTimeOffset(user.UpdatedAt).ToUnixTimeSeconds(),
+            roles = user.Roles.Select(r => r.Name).ToList(),
+            provider = user.Provider
+        });
+    }
 }

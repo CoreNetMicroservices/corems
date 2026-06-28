@@ -312,7 +312,6 @@ if (token) {
   setRefreshToken(token);
   urlParams.delete("refresh_token");
   window.location.search = urlParams.toString();
-  setAccessToken(null);
 } else {
   setRefreshToken(localStorage.getItem(REFRESH_TOKEN_KEY));
   setAccessToken(null);

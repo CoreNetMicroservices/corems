@@ -8,6 +8,10 @@ var postgres = builder.AddPostgres("postgres", password: postgresPassword, port:
     .WithPgAdmin()
     .AddDatabase("corems");
 
+var rabbitmq = builder.AddRabbitMQ("rabbitmq")
+    .WithDataVolume("corems-rabbitmq-data")
+    .WithManagementPlugin();
+
 var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithReference(postgres)
     .WaitFor(postgres)
@@ -22,9 +26,12 @@ var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
 
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
     .WithReference(postgres)
+    .WithReference(rabbitmq)
     .WaitFor(postgres)
+    .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
+    .WithEnvironment("Queue__Enabled", "true")
     .WithEnvironment("Mail__Password", secrets["MailPassword"] ?? "");
 
 var frontend = builder.AddViteApp("frontend", "../../../frontend")

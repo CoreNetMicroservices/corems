@@ -80,16 +80,25 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var rabbitHost = builder.Configuration["RabbitMq:Host"] ?? "localhost";
-        var rabbitPort = int.Parse(builder.Configuration["RabbitMq:Port"] ?? "5672");
-        var rabbitUser = builder.Configuration["RabbitMq:Username"] ?? "guest";
-        var rabbitPass = builder.Configuration["RabbitMq:Password"] ?? "guest";
-
-        cfg.Host(rabbitHost, (ushort)rabbitPort, "/", h =>
+        // Aspire injects ConnectionStrings__rabbitmq; fallback to manual config
+        var connectionString = builder.Configuration.GetConnectionString("rabbitmq");
+        if (!string.IsNullOrEmpty(connectionString))
         {
-            h.Username(rabbitUser);
-            h.Password(rabbitPass);
-        });
+            cfg.Host(new Uri(connectionString));
+        }
+        else
+        {
+            var rabbitHost = builder.Configuration["RabbitMq:Host"] ?? "localhost";
+            var rabbitPort = int.Parse(builder.Configuration["RabbitMq:Port"] ?? "5672");
+            var rabbitUser = builder.Configuration["RabbitMq:Username"] ?? "guest";
+            var rabbitPass = builder.Configuration["RabbitMq:Password"] ?? "guest";
+
+            cfg.Host(rabbitHost, (ushort)rabbitPort, "/", h =>
+            {
+                h.Username(rabbitUser);
+                h.Password(rabbitPass);
+            });
+        }
 
         cfg.ConfigureEndpoints(context);
     });

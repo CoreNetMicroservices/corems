@@ -45,12 +45,25 @@ corems-parent/
 
 ## Development Workflow
 
+### Running the Full Stack (Recommended)
+```powershell
+# Start everything via Aspire (from backend/ directory)
+dotnet run --project aspire/CoreMs.AppHost
+```
+
+This starts PostgreSQL (Docker), pgAdmin, user-ms, and frontend together. On first run it auto-migrates and seeds test data.
+
+### Secrets Management
+All secrets live in a single file: `aspire/CoreMs.AppHost/appsettings.Development.json` (gitignored).
+The AppHost distributes secrets to services via `.WithEnvironment()`. Individual services never store secrets in their own appsettings.
+
+### Standalone Commands
 ```powershell
 # Restore and build
 dotnet restore
 dotnet build
 
-# Run user-ms
+# Run user-ms standalone (requires Postgres on port 5432)
 dotnet run --project user-ms/src/CoreMs.UserMs.Api
 
 # Run all tests
@@ -63,6 +76,12 @@ dotnet ef migrations add <Name> `
 ```
 
 All commands run from the `backend/` directory.
+
+### Aspire Configuration
+- PostgreSQL: fixed port 5432, stable creds (postgres/postgres), persistent Docker volume
+- Secrets injected to services via `WithEnvironment("Section__Key", value)`
+- Frontend gets backend URL dynamically via `REACT_USER_MS_BASE_URL` env var
+- Auto-migrate + auto-seed in Development mode (idempotent)
 
 ## Service Structure
 

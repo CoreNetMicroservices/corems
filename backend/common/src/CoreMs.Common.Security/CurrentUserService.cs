@@ -17,7 +17,8 @@ public class CurrentUserService : ICurrentUserService
 
     public Guid GetCurrentUserUuid()
     {
-        var sub = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+        var sub = _httpContextAccessor.HttpContext?.User.FindFirstValue("sub")
+            ?? _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? throw new InvalidOperationException("User is not authenticated.");
 
         return Guid.Parse(sub);
@@ -25,18 +26,23 @@ public class CurrentUserService : ICurrentUserService
 
     public string GetCurrentUserEmail()
     {
-        return _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+        return _httpContextAccessor.HttpContext?.User.FindFirstValue("email")
+            ?? _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
             ?? throw new InvalidOperationException("User is not authenticated.");
     }
 
     public IReadOnlyList<string> GetCurrentUserRoles()
     {
-        var roles = _httpContextAccessor.HttpContext?.User
-            .FindAll(ClaimTypes.Role)
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user is null) return new List<string>().AsReadOnly();
+
+        var roles = user.FindAll("role")
+            .Concat(user.FindAll(ClaimTypes.Role))
             .Select(c => c.Value)
+            .Distinct()
             .ToList();
 
-        return roles?.AsReadOnly() ?? new List<string>().AsReadOnly();
+        return roles.AsReadOnly();
     }
 
     public bool IsInRole(string role)

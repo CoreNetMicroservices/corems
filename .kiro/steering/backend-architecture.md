@@ -150,3 +150,105 @@ No interfaces needed. If a class implements `IClassName`, it registers as the in
 - ✅ No package version overrides in individual .csproj files
 - ✅ Migration changes sync with entity changes
 - ✅ Nullable reference types respected (no warnings)
+
+## Aspire Orchestration
+
+### AppHost Configuration
+The AppHost (`aspire/CoreMs.AppHost/Program.cs`) is the single orchestrator:
+
+```csharp
+var postgresPassword = builder.AddParameter("postgres-password", secret: true);
+var secrets = builder.Configuration.GetSection("Secrets");
+
+var postgres = builder.AddPostgres("postgres", password: postgresPassword, port: 5432)
+    .WithDataVolume("corems-postgres-data")
+    .WithPgAdmin()
+    .AddDatabase("corems");
+
+var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "");
+```
+
+### Secrets File (gitignored)
+`aspire/CoreMs.AppHost/appsettings.Development.json`:
+```json
+{
+  "Parameters": { "postgres-password": "postgres" },
+  "Secrets": {
+    "JwtSecretKey": "your-secret-key-min-32-chars",
+    "RabbitMqPassword": "guest",
+    "GoogleClientId": "", "GoogleClientSecret": "",
+    "GitHubClientId": "", "GitHubClientSecret": "",
+    "LinkedInClientId": "", "LinkedInClientSecret": ""
+  }
+}
+```
+
+### Adding a New Service to Aspire
+```csharp
+var commMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("RabbitMq__Password", secrets["RabbitMqPassword"] ?? "guest");
+```
+
+## CORS
+
+Each service configures CORS in Program.cs:
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? ["http://localhost:8080"])
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// In middleware pipeline (before auth):
+app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+Add `Cors:AllowedOrigins` to service appsettings.json.
+
+## Token Architecture
+
+### Access Token (JWT, short-lived)
+- Contains: `sub`, `email`, `role`, `scope`
+- Expiration: 10 minutes
+- Used for API authorization
+
+### Refresh Token (JWT, long-lived)
+- Contains: `sub`, `email`, `first_name`, `last_name`, `roles`
+- Expiration: 24 hours
+- Stored in DB (`login_token` table) for revocation
+- Single-use with rotation (old token deleted, new one issued)
+- Frontend must store the new refresh token after each refresh
+
+### Token Claims Convention
+- Use short claim names: `"role"`, `"sub"`, `"email"` (not ClaimTypes.*)
+- Multiple roles: multiple `"role"` claims in access token
+- Refresh token uses `"roles"` (plural) for frontend compatibility
+
+## Auto-Migrate and Seed (Development)
+
+Services auto-migrate and seed in Development mode:
+```csharp
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ServiceDbContext>();
+    await db.Database.MigrateAsync();
+    
+    var seeder = new SeedDataService(db, logger);
+    await seeder.SeedAsync();  // Idempotent: checks if data exists
+}
+```

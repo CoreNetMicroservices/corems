@@ -102,7 +102,7 @@ public class TokenService
         };
 
         foreach (var role in roles)
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(new Claim("role", role));
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -158,7 +158,36 @@ public class TokenService
 
     private string CreateAndPersistRefreshToken(UserEntity user)
     {
-        var token = GenerateSecureToken();
+        var now = DateTime.UtcNow;
+        var expires = now.AddMinutes(_options.RefreshTokenExpirationMinutes);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, user.Uuid.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new("first_name", user.FirstName ?? ""),
+            new("last_name", user.LastName ?? ""),
+        };
+
+        foreach (var role in user.Roles.Select(r => r.Name))
+            claims.Add(new Claim("roles", role));
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = expires,
+            Issuer = _options.Issuer,
+            Audience = _options.Audience,
+            SigningCredentials = _signingCredentials,
+            IssuedAt = now,
+            NotBefore = now
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var securityToken = tokenHandler.CreateToken(tokenDescriptor);
+        var token = tokenHandler.WriteToken(securityToken);
 
         var loginToken = new LoginTokenEntity
         {

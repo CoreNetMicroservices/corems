@@ -9,10 +9,10 @@ namespace CoreMs.UserMs.Core.Repositories;
 public class LoginTokenRepository(DbContext context) : CrudRepository<LoginTokenEntity>(context)
 {
     public virtual async Task<LoginTokenEntity?> GetByUuidAsync(Guid uuid, CancellationToken ct = default)
-        => await DbSet.Include(t => t.User).FirstOrDefaultAsync(t => t.Uuid == uuid, ct);
+        => await DbSet.Include(t => t.User).ThenInclude(u => u.Roles).FirstOrDefaultAsync(t => t.Uuid == uuid, ct);
 
     public virtual async Task<LoginTokenEntity?> GetByTokenAsync(string token, CancellationToken ct = default)
-        => await DbSet.Include(t => t.User).FirstOrDefaultAsync(t => t.Token == token, ct);
+        => await DbSet.Include(t => t.User).ThenInclude(u => u.Roles).FirstOrDefaultAsync(t => t.Token == token, ct);
 
     public virtual async Task DeleteAllByUserIdAsync(long userId, CancellationToken ct = default)
     {

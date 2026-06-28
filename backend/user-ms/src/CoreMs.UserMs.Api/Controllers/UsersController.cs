@@ -46,7 +46,7 @@ public class UsersController : ControllerBase
     {
         var user = await _userService.CreateUserAsync(request, ct);
         var dto = user.ToUserInfoDto();
-        return CreatedAtAction(nameof(GetById), new { userId = dto.Uuid }, dto);
+        return CreatedAtAction(nameof(GetById), new { userId = dto.UserId }, dto);
     }
 
     /// <summary>
@@ -63,6 +63,7 @@ public class UsersController : ControllerBase
     /// Update a user's fields including roles and active status.
     /// </summary>
     [HttpPut("{userId:guid}")]
+    [HttpPatch("{userId:guid}")]
     public async Task<ActionResult<UserInfoDto>> Update(
         Guid userId, [FromBody] UserUpdateRequest request, CancellationToken ct)
     {

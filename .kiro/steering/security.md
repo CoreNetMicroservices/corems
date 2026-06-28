@@ -84,6 +84,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;  // CRITICAL: disable claim type mapping
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -94,13 +95,20 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = signingKey,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero,
-        NameClaimType = JwtRegisteredClaimNames.Sub,
-        RoleClaimType = ClaimTypes.Role
+        NameClaimType = "sub",       // Short claim name (not ClaimTypes.NameIdentifier)
+        RoleClaimType = "role"       // Short claim name (not ClaimTypes.Role)
     };
 });
 
 builder.Services.AddAuthorization();
 ```
+
+### CRITICAL: Claim Name Convention
+- Always use **short claim names** in JWT tokens: `"sub"`, `"email"`, `"role"`
+- Set `MapInboundClaims = false` to prevent ASP.NET mapping short names to long URIs
+- Use `"role"` (not `ClaimTypes.Role`) when adding role claims to tokens
+- `CurrentUserService` reads claims using short names with fallback to long names
+- DO NOT use `ClaimTypes.Role`, `ClaimTypes.NameIdentifier`, or `ClaimTypes.Email` in new code
 
 ## Using ICurrentUserService in Controllers
 

@@ -247,6 +247,12 @@ const setAccessToken = async (
     if (tokenResponse.result === true) {
       accessToken = tokenResponse.response.access_token;
       localStorage.setItem(ACCESS_TOKEN_KEY, accessToken as string);
+
+      // Token rotation: update refresh token with the new one from the response
+      if (tokenResponse.response.refresh_token) {
+        setRefreshToken(tokenResponse.response.refresh_token);
+        localStorage.setItem(REFRESH_TOKEN_KEY, tokenResponse.response.refresh_token);
+      }
     } else {
       console.error("Failed to refresh token", tokenResponse.errors);
       signOut();

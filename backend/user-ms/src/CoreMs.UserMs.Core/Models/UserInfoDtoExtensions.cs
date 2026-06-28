@@ -6,7 +6,7 @@ public static class UserInfoDtoExtensions
 {
     public static UserInfoDto ToUserInfoDto(this UserEntity entity) => new()
     {
-        Uuid = entity.Uuid,
+        UserId = entity.Uuid,
         Email = entity.Email,
         FirstName = entity.FirstName,
         LastName = entity.LastName,

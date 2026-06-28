@@ -21,6 +21,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Aspire service defaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
 
+// CORS (allow frontend origin)
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? ["http://localhost:8080"])
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // Controllers + JSON options
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -132,6 +146,7 @@ builder.Services.AddAuthentication(options =>
     })
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -142,8 +157,8 @@ builder.Services.AddAuthentication(options =>
             IssuerSigningKey = signingKey,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
-            NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub,
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role
+            NameClaimType = "sub",
+            RoleClaimType = "role"
         };
     });
 
@@ -194,15 +209,20 @@ builder.Services.AddHostedService<TokenCleanupService>();
 
 var app = builder.Build();
 
-// Auto-migrate in Development (Aspire injects the correct connection string)
+// Auto-migrate and seed in Development
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<UserMsDbContext>();
     await db.Database.MigrateAsync();
+
+    var seeder = new SeedDataService(
+        db,
+        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>());
+    await seeder.SeedAsync();
 }
 
-// CLI: seed data command
+// CLI: seed data command (for non-Development environments)
 if (args.Contains("--seed"))
 {
     using var scope = app.Services.CreateScope();
@@ -231,6 +251,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
+app.UseCors();
 app.UseMiddleware<AutoSaveChangesMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();

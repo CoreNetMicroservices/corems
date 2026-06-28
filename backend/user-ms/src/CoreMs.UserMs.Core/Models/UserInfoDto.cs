@@ -5,7 +5,7 @@ namespace CoreMs.UserMs.Core.Models;
 /// </summary>
 public record UserInfoDto
 {
-    public Guid Uuid { get; init; }
+    public Guid UserId { get; init; }
     public string Email { get; init; } = string.Empty;
     public string? FirstName { get; init; }
     public string? LastName { get; init; }

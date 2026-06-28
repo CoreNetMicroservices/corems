@@ -1,5 +1,3 @@
-using CoreMs.CommunicationMs.Core.Enums;
-
 namespace CoreMs.CommunicationMs.Core.Models;
 
 public record MessageResponse

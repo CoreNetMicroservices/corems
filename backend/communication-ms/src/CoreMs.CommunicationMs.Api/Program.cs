@@ -3,8 +3,8 @@ using CoreMs.Common.Data;
 using CoreMs.Common.Extensions;
 using CoreMs.Common.Middleware;
 using CoreMs.Common.Security;
-using CoreMs.CommunicationMs.Api.Configuration;
 using CoreMs.Common.Messaging;
+using CoreMs.CommunicationMs.Core.Configuration;
 using CoreMs.CommunicationMs.Core.Services;
 using CoreMs.CommunicationMs.Core.Services.Providers;
 using CoreMs.CommunicationMs.Infrastructure.Data;
@@ -77,7 +77,6 @@ builder.Services.AddOptions<QueueOptions>()
 builder.Services.AddCoreMsMessaging(builder.Configuration, cfg =>
 {
     cfg.AddConsumer<SendMessageConsumer>();
-    cfg.AddConsumer<NotificationCommandConsumer>();
 });
 
 // FluentValidation

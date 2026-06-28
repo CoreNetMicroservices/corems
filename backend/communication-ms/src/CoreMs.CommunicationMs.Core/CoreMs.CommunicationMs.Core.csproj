@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
-    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

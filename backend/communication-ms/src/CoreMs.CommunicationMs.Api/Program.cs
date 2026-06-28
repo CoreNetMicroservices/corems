@@ -5,6 +5,7 @@ using CoreMs.Common.Middleware;
 using CoreMs.Common.Security;
 using CoreMs.CommunicationMs.Api.Configuration;
 using CoreMs.CommunicationMs.Core.Services;
+using CoreMs.CommunicationMs.Core.Services.Providers;
 using CoreMs.CommunicationMs.Infrastructure.Data;
 using CoreMs.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -49,25 +50,29 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<CommunicationM
 // Auto-register services and repositories
 builder.Services.AddCoreMsServices(typeof(MessagingService).Assembly);
 
+// Channel providers (registered as IChannelProvider collection)
+builder.Services.AddOptions<EmailProviderOptions>()
+    .Bind(builder.Configuration.GetSection(EmailProviderOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<SmsProviderOptions>()
+    .Bind(builder.Configuration.GetSection(SmsProviderOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<SlackProviderOptions>()
+    .Bind(builder.Configuration.GetSection(SlackProviderOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddScoped<IChannelProvider, EmailProvider>();
+builder.Services.AddScoped<IChannelProvider, SmsProvider>();
+builder.Services.AddScoped<IChannelProvider, SlackProvider>();
+
 // FluentValidation
 builder.Services.AddCoreMsValidation(typeof(Program).Assembly);
 
 // Exception handling
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
-
-// Configuration
-builder.Services.AddOptions<MailOptions>()
-    .Bind(builder.Configuration.GetSection(MailOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<SmsOptions>()
-    .Bind(builder.Configuration.GetSection(SmsOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<SlackOptions>()
-    .Bind(builder.Configuration.GetSection(SlackOptions.SectionName))
-    .ValidateOnStart();
 
 // Security
 builder.Services.AddHttpContextAccessor();

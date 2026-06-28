@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.CommunicationMs.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

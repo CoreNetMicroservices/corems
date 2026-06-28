@@ -22,6 +22,7 @@
   </Folder>
   <Folder Name="/communication-ms/src/">
     <Project Path="communication-ms/src/CoreMs.CommunicationMs.Api/CoreMs.CommunicationMs.Api.csproj" />
+    <Project Path="communication-ms/src/CoreMs.CommunicationMs.Client/CoreMs.CommunicationMs.Client.csproj" />
     <Project Path="communication-ms/src/CoreMs.CommunicationMs.Core/CoreMs.CommunicationMs.Core.csproj" />
     <Project Path="communication-ms/src/CoreMs.CommunicationMs.Infrastructure/CoreMs.CommunicationMs.Infrastructure.csproj" />
   </Folder>

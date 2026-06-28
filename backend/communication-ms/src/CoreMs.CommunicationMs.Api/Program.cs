@@ -77,6 +77,7 @@ builder.Services.AddOptions<QueueOptions>()
 builder.Services.AddCoreMsMessaging(builder.Configuration, cfg =>
 {
     cfg.AddConsumer<SendMessageConsumer>();
+    cfg.AddConsumer<NotificationCommandConsumer>();
 });
 
 // FluentValidation

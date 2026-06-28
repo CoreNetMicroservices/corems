@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.CommunicationMs.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoreMs.CommunicationMs.Core\CoreMs.CommunicationMs.Core.csproj" />
+    <ProjectReference Include="..\CoreMs.CommunicationMs.Infrastructure\CoreMs.CommunicationMs.Infrastructure.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Security\CoreMs.Common.Security.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
+    <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

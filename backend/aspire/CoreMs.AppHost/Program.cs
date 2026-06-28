@@ -20,9 +20,17 @@ var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithEnvironment("SocialAuth__LinkedIn__ClientId", secrets["LinkedInClientId"] ?? "")
     .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", secrets["LinkedInClientSecret"] ?? "");
 
+var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
+    .WithEnvironment("Mail__Password", secrets["MailPassword"] ?? "");
+
 var frontend = builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")
     .WithEnvironment("REACT_USER_MS_BASE_URL", userMs.GetEndpoint("http"))
+    .WithEnvironment("REACT_COMMUNICATION_MS_BASE_URL", communicationMs.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

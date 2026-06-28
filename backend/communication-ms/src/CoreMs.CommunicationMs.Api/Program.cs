@@ -4,10 +4,10 @@ using CoreMs.Common.Extensions;
 using CoreMs.Common.Middleware;
 using CoreMs.Common.Security;
 using CoreMs.CommunicationMs.Api.Configuration;
+using CoreMs.Common.Messaging;
 using CoreMs.CommunicationMs.Core.Services;
 using CoreMs.CommunicationMs.Core.Services.Providers;
 using CoreMs.CommunicationMs.Infrastructure.Data;
-using MassTransit;
 using CoreMs.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -73,35 +73,10 @@ builder.Services.AddOptions<QueueOptions>()
     .Bind(builder.Configuration.GetSection(QueueOptions.SectionName))
     .ValidateOnStart();
 
-// MassTransit (RabbitMQ)
-builder.Services.AddMassTransit(x =>
+// Messaging (MassTransit — transport resolved from config)
+builder.Services.AddCoreMsMessaging(builder.Configuration, cfg =>
 {
-    x.AddConsumer<SendMessageConsumer>();
-
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        // Aspire injects ConnectionStrings__rabbitmq; fallback to manual config
-        var connectionString = builder.Configuration.GetConnectionString("rabbitmq");
-        if (!string.IsNullOrEmpty(connectionString))
-        {
-            cfg.Host(new Uri(connectionString));
-        }
-        else
-        {
-            var rabbitHost = builder.Configuration["RabbitMq:Host"] ?? "localhost";
-            var rabbitPort = int.Parse(builder.Configuration["RabbitMq:Port"] ?? "5672");
-            var rabbitUser = builder.Configuration["RabbitMq:Username"] ?? "guest";
-            var rabbitPass = builder.Configuration["RabbitMq:Password"] ?? "guest";
-
-            cfg.Host(rabbitHost, (ushort)rabbitPort, "/", h =>
-            {
-                h.Username(rabbitUser);
-                h.Password(rabbitPass);
-            });
-        }
-
-        cfg.ConfigureEndpoints(context);
-    });
+    cfg.AddConsumer<SendMessageConsumer>();
 });
 
 // FluentValidation

@@ -1,4 +1,4 @@
-namespace CoreMs.UserMs.Api.Configuration;
+namespace CoreMs.UserMs.Core.Configuration;
 
 using System.ComponentModel.DataAnnotations;
 

@@ -12,19 +12,6 @@ var rabbitmq = builder.AddRabbitMQ("rabbitmq")
     .WithDataVolume("corems-rabbitmq-data")
     .WithManagementPlugin();
 
-var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
-    .WithReference(postgres)
-    .WithReference(rabbitmq)
-    .WaitFor(postgres)
-    .WaitFor(rabbitmq)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
-    .WithEnvironment("SocialAuth__Google__ClientId", secrets["GoogleClientId"] ?? "")
-    .WithEnvironment("SocialAuth__Google__ClientSecret", secrets["GoogleClientSecret"] ?? "")
-    .WithEnvironment("SocialAuth__GitHub__ClientId", secrets["GitHubClientId"] ?? "")
-    .WithEnvironment("SocialAuth__GitHub__ClientSecret", secrets["GitHubClientSecret"] ?? "")
-    .WithEnvironment("SocialAuth__LinkedIn__ClientId", secrets["LinkedInClientId"] ?? "")
-    .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", secrets["LinkedInClientSecret"] ?? "");
-
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
     .WithReference(postgres)
     .WithReference(rabbitmq)
@@ -34,6 +21,18 @@ var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("c
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Queue__Enabled", "true")
     .WithEnvironment("Mail__Password", secrets["MailPassword"] ?? "");
+
+var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("CommunicationMs__BaseUrl", communicationMs.GetEndpoint("http"))
+    .WithEnvironment("SocialAuth__Google__ClientId", secrets["GoogleClientId"] ?? "")
+    .WithEnvironment("SocialAuth__Google__ClientSecret", secrets["GoogleClientSecret"] ?? "")
+    .WithEnvironment("SocialAuth__GitHub__ClientId", secrets["GitHubClientId"] ?? "")
+    .WithEnvironment("SocialAuth__GitHub__ClientSecret", secrets["GitHubClientSecret"] ?? "")
+    .WithEnvironment("SocialAuth__LinkedIn__ClientId", secrets["LinkedInClientId"] ?? "")
+    .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", secrets["LinkedInClientSecret"] ?? "");
 
 var frontend = builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")

@@ -16,6 +16,7 @@
     <ProjectReference Include="..\CoreMs.UserMs.Core\CoreMs.UserMs.Core.csproj" />
     <ProjectReference Include="..\CoreMs.UserMs.Infrastructure\CoreMs.UserMs.Infrastructure.csproj" />
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Security\CoreMs.Common.Security.csproj" />
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Client\CoreMs.CommunicationMs.Client.csproj" />
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
   </ItemGroup>
 

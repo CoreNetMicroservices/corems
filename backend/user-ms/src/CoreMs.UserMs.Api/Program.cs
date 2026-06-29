@@ -3,9 +3,9 @@ using System.Text;
 using System.Threading.RateLimiting;
 using CoreMs.Common.Data;
 using CoreMs.Common.Extensions;
-using CoreMs.Common.Messaging;
 using CoreMs.Common.Middleware;
 using CoreMs.Common.Security;
+using CoreMs.CommunicationMs.Client;
 using CoreMs.ServiceDefaults;
 using CoreMs.UserMs.Api.Configuration;
 using CoreMs.UserMs.Api.Services;
@@ -87,8 +87,9 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<UserMsDbContex
 // Auto-register services and repositories by convention ([Service] / [Repository])
 builder.Services.AddCoreMsServices(typeof(UserService).Assembly);
 
-// Messaging (publish notifications to communication-ms via queue)
-builder.Services.AddCoreMsMessaging(builder.Configuration);
+// Communication service client (for sending notifications)
+var communicationMsUrl = builder.Configuration["CommunicationMs:BaseUrl"] ?? "http://localhost:5101";
+builder.Services.AddCommunicationMsClient(communicationMsUrl);
 
 // HTTP clients for social auth providers
 builder.Services.AddHttpClient();

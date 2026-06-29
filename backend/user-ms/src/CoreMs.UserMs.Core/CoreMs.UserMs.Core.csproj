@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Client\CoreMs.CommunicationMs.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

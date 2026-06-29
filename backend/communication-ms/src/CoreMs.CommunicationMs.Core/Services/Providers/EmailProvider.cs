@@ -1,7 +1,9 @@
 using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Models;
+using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
@@ -15,6 +17,7 @@ public class EmailProviderOptions
     public int Port { get; set; } = 1025;
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+    public bool UseSsl { get; set; }
 }
 
 public class EmailProvider : IChannelProvider
@@ -30,7 +33,7 @@ public class EmailProvider : IChannelProvider
 
     public MessageType MessageType => MessageType.Email;
 
-    public Task SendAsync(object payload, CancellationToken ct = default)
+    public async Task SendAsync(object payload, CancellationToken ct = default)
     {
         if (payload is not EmailPayloadDto email)
             throw new InvalidOperationException("Invalid payload type for email provider");
@@ -38,11 +41,34 @@ public class EmailProvider : IChannelProvider
         if (!_options.Enabled)
         {
             _logger.LogInformation("Email sending disabled. Simulating send to {Recipient}: {Subject}", email.Recipient, email.Subject);
-            return Task.CompletedTask;
+            return;
         }
 
-        // TODO: integrate with MailKit or System.Net.Mail for real sending
-        _logger.LogInformation("Sending email to {Recipient}: {Subject}", email.Recipient, email.Subject);
-        return Task.CompletedTask;
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(email.SenderName ?? "", email.Sender ?? _options.DefaultFrom));
+        message.To.Add(MailboxAddress.Parse(email.Recipient));
+        message.Subject = email.Subject;
+
+        if (email.Cc != null)
+            foreach (var cc in email.Cc)
+                message.Cc.Add(MailboxAddress.Parse(cc));
+
+        if (email.Bcc != null)
+            foreach (var bcc in email.Bcc)
+                message.Bcc.Add(MailboxAddress.Parse(bcc));
+
+        var isHtml = email.EmailType.Equals("html", StringComparison.OrdinalIgnoreCase);
+        message.Body = new TextPart(isHtml ? "html" : "plain") { Text = email.Body ?? "" };
+
+        using var client = new SmtpClient();
+        await client.ConnectAsync(_options.Host, _options.Port, _options.UseSsl, ct);
+
+        if (!string.IsNullOrEmpty(_options.Username))
+            await client.AuthenticateAsync(_options.Username, _options.Password, ct);
+
+        await client.SendAsync(message, ct);
+        await client.DisconnectAsync(true, ct);
+
+        _logger.LogInformation("Email sent to {Recipient}: {Subject}", email.Recipient, email.Subject);
     }
 }

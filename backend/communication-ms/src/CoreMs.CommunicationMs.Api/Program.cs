@@ -51,6 +51,9 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<CommunicationM
 // Auto-register services and repositories
 builder.Services.AddCoreMsServices(typeof(MessagingService).Assembly);
 
+// HTTP clients for external provider APIs (Twilio, Slack)
+builder.Services.AddHttpClient();
+
 // Channel providers (registered as IChannelProvider collection)
 builder.Services.AddOptions<EmailProviderOptions>()
     .Bind(builder.Configuration.GetSection(EmailProviderOptions.SectionName))

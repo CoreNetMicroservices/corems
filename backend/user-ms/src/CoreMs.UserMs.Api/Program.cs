@@ -140,6 +140,9 @@ builder.Services.AddOptions<TokenServiceOptions>()
     .Bind(builder.Configuration.GetSection(TokenServiceOptions.SectionName))
     .ValidateOnStart();
 
+// Centralized token provider
+builder.Services.AddCoreMsTokenProvider(builder.Configuration);
+
 // Security (ICurrentUserService + HttpContextAccessor)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();

@@ -1,16 +1,13 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using CoreMs.Common.Exceptions;
 using CoreMs.Common.Extensions;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Exceptions;
 using CoreMs.UserMs.Core.Models;
 using CoreMs.UserMs.Core.Repositories;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace CoreMs.UserMs.Core.Services;
 
@@ -21,32 +18,32 @@ public class TokenService
     private readonly ActionTokenRepository _actionTokenRepository;
     private readonly AuthorizationCodeRepository _authorizationCodeRepository;
     private readonly TokenServiceOptions _options;
-    private readonly SigningCredentials _signingCredentials;
+    private readonly TokenProvider _tokenProvider;
 
     public TokenService(
         LoginTokenRepository loginTokenRepository,
         ActionTokenRepository actionTokenRepository,
         AuthorizationCodeRepository authorizationCodeRepository,
-        IOptions<TokenServiceOptions> options)
+        IOptions<TokenServiceOptions> options,
+        TokenProvider tokenProvider)
     {
         _loginTokenRepository = loginTokenRepository;
         _actionTokenRepository = actionTokenRepository;
         _authorizationCodeRepository = authorizationCodeRepository;
         _options = options.Value;
-        _signingCredentials = CreateSigningCredentials();
+        _tokenProvider = tokenProvider;
     }
 
     public Task<OAuth2TokenResponse> GenerateTokenResponseAsync(UserEntity user, string? scope, string? nonce, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
         var scopes = scope ?? "openid profile email";
 
-        var accessToken = GenerateAccessToken(user, scopes, now);
+        var accessToken = GenerateAccessToken(user, scopes);
         var refreshToken = CreateAndPersistRefreshToken(user);
 
         string? idToken = null;
         if (scopes.Contains("openid"))
-            idToken = GenerateIdToken(user, nonce, now);
+            idToken = GenerateIdToken(user, nonce);
 
         var response = new OAuth2TokenResponse
         {
@@ -88,106 +85,51 @@ public class TokenService
         await _authorizationCodeRepository.DeleteExpiredAsync(ct);
     }
 
-    private string GenerateAccessToken(UserEntity user, string scopes, DateTime now)
+    private string GenerateAccessToken(UserEntity user, string scopes)
     {
         var roles = user.Roles.Select(r => r.Name).ToList();
-
-        var claims = new List<Claim>
+        var claims = new Dictionary<string, object>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Uuid.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new("scope", scopes)
+            [TokenProvider.ClaimEmail] = user.Email,
+            ["scope"] = scopes,
+            [TokenProvider.ClaimRoles] = string.Join(",", roles)
         };
 
-        foreach (var role in roles)
-            claims.Add(new Claim("role", role));
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = now.AddMinutes(_options.AccessTokenExpirationMinutes),
-            Issuer = _options.Issuer,
-            Audience = _options.Audience,
-            SigningCredentials = _signingCredentials,
-            IssuedAt = now,
-            NotBefore = now
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        return _tokenProvider.CreateAccessToken(user.Uuid.ToString(), claims);
     }
 
-    private string GenerateIdToken(UserEntity user, string? nonce, DateTime now)
+    private string GenerateIdToken(UserEntity user, string? nonce)
     {
-        var claims = new List<Claim>
+        var claims = new Dictionary<string, object>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Uuid.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new("email_verified", user.EmailVerified.ToString().ToLowerInvariant(), ClaimValueTypes.Boolean)
+            [TokenProvider.ClaimEmail] = user.Email,
+            ["email_verified"] = user.EmailVerified.ToString().ToLowerInvariant()
         };
 
         if (user.FirstName is not null)
-            claims.Add(new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName));
+            claims["given_name"] = user.FirstName;
 
         if (user.LastName is not null)
-            claims.Add(new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName));
+            claims["family_name"] = user.LastName;
 
         if (nonce is not null)
-            claims.Add(new Claim(JwtRegisteredClaimNames.Nonce, nonce));
+            claims["nonce"] = nonce;
 
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = now.AddMinutes(_options.IdTokenExpirationMinutes),
-            Issuer = _options.Issuer,
-            Audience = _options.Audience,
-            SigningCredentials = _signingCredentials,
-            IssuedAt = now,
-            NotBefore = now
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        return _tokenProvider.CreateIdToken(user.Uuid.ToString(), claims);
     }
 
     private string CreateAndPersistRefreshToken(UserEntity user)
     {
-        var now = DateTime.UtcNow;
-        var expires = now.AddMinutes(_options.RefreshTokenExpirationMinutes);
-
-        var claims = new List<Claim>
+        var roles = user.Roles.Select(r => r.Name).ToList();
+        var claims = new Dictionary<string, object>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Uuid.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            new("first_name", user.FirstName ?? ""),
-            new("last_name", user.LastName ?? ""),
+            [TokenProvider.ClaimEmail] = user.Email,
+            [TokenProvider.ClaimFirstName] = user.FirstName ?? "",
+            [TokenProvider.ClaimLastName] = user.LastName ?? "",
+            [TokenProvider.ClaimRoles] = string.Join(",", roles)
         };
 
-        foreach (var role in user.Roles.Select(r => r.Name))
-            claims.Add(new Claim("roles", role));
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = expires,
-            Issuer = _options.Issuer,
-            Audience = _options.Audience,
-            SigningCredentials = _signingCredentials,
-            IssuedAt = now,
-            NotBefore = now
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-        var token = tokenHandler.WriteToken(securityToken);
+        var token = _tokenProvider.CreateRefreshToken(user.Uuid.ToString(), claims);
 
         var loginToken = new LoginTokenEntity
         {
@@ -198,21 +140,6 @@ public class TokenService
         _loginTokenRepository.Add(loginToken);
 
         return token;
-    }
-
-    private SigningCredentials CreateSigningCredentials()
-    {
-        if (string.IsNullOrEmpty(_options.SecretKey))
-        {
-            var key = new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(32));
-            return new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
-            {
-                CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false }
-            };
-        }
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey));
-        return new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
     }
 
     private static string GenerateSecureToken()

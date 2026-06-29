@@ -21,9 +21,8 @@ corems-parent/
 │   │   └── CoreMs.ServiceDefaults/   # Shared service config
 │   ├── common/                       # Shared libraries
 │   │   ├── src/
-│   │   │   ├── CoreMs.Common/        # Exceptions, Repository, Data, Middleware, Extensions
-│   │   │   ├── CoreMs.Common.Contracts/  # Shared DTOs, contracts
-│   │   │   └── CoreMs.Common.Security/   # JWT, auth middleware, RBAC
+│   │   │   ├── CoreMs.Common/        # Exceptions, Repository, Data, Middleware, Extensions, Security
+│   │   │   └── CoreMs.Common.Contracts/  # Shared DTOs, contracts
 │   │   └── test/
 │   │       └── CoreMs.Common.Tests/
 │   ├── user-ms/                      # User management service
@@ -135,9 +134,8 @@ Each service uses a three-layer structure: **Api**, **Core**, and **Infrastructu
 
 | Package | Purpose |
 |---------|---------|
-| `CoreMs.Common` | Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler, AutoSaveChangesMiddleware), Extensions ([Service], [Repository], AddCoreMsServices) |
+| `CoreMs.Common` | Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler, AutoSaveChangesMiddleware), Extensions ([Service], [Repository], AddCoreMsServices), Security (TokenProvider, ICurrentUserService, CoreMsRoles, JWT validation) |
 | `CoreMs.Common.Contracts` | Shared DTOs and API contracts |
-| `CoreMs.Common.Security` | JWT validation, ICurrentUserService, RBAC |
 
 ## Auto-Registration Convention
 

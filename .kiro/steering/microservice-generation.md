@@ -45,7 +45,6 @@ fileMatchPattern: "**/{Program.cs,appsettings.json,*.csproj}"
   <ItemGroup>
     <ProjectReference Include="..\CoreMs.<Service>Ms.Core\CoreMs.<Service>Ms.Core.csproj" />
     <ProjectReference Include="..\CoreMs.<Service>Ms.Infrastructure\CoreMs.<Service>Ms.Infrastructure.csproj" />
-    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Security\CoreMs.Common.Security.csproj" />
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
   </ItemGroup>

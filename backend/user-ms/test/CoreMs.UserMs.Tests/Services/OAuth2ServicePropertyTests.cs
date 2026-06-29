@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using CoreMs.Common.Exceptions;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Repositories;
@@ -326,7 +327,18 @@ public class OAuth2ServicePropertyTests
         var actionTokenRepo = Substitute.For<ActionTokenRepository>(dbContext);
         var authCodeRepo = Substitute.For<AuthorizationCodeRepository>(dbContext);
         var options = Options.Create(CreateTestTokenOptions());
-        var tokenService = Substitute.For<TokenService>(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var tokenProviderOptions = Options.Create(new TokenProviderOptions
+        {
+            Algorithm = SigningAlgorithm.HS256,
+            SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
+            Issuer = "http://test-issuer",
+            AccessTokenExpirationMinutes = 10,
+            RefreshTokenExpirationMinutes = 1440,
+            IdTokenExpirationMinutes = 60,
+            ActionTokenExpirationMinutes = 1440
+        });
+        var tokenProvider = new TokenProvider(tokenProviderOptions);
+        var tokenService = Substitute.For<TokenService>(loginTokenRepo, actionTokenRepo, authCodeRepo, options, tokenProvider);
         var userRepo = Substitute.For<UserRepository>(dbContext);
         var authService = Substitute.For<AuthService>(userRepo);
 

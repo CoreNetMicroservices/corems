@@ -13,6 +13,8 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="FsCheck" />
+    <PackageReference Include="FsCheck.Xunit" />
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
   </ItemGroup>

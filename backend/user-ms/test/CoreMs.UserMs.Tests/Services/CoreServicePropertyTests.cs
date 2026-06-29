@@ -1,4 +1,5 @@
 using CoreMs.Common.Exceptions;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Exceptions;
@@ -221,7 +222,7 @@ public class CoreServicePropertyTests
         var authCodeRepo = CreateAuthorizationCodeRepository();
         var options = Options.Create(CreateTestTokenOptions());
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
         var user = userInput.ToEntity();
 
         var response = await service.GenerateTokenResponseAsync(user, "openid profile email", null);
@@ -242,7 +243,7 @@ public class CoreServicePropertyTests
         var authCodeRepo = CreateAuthorizationCodeRepository();
         var options = Options.Create(CreateTestTokenOptions());
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
         var user = userInput.ToEntity();
 
         var response = await service.GenerateTokenResponseAsync(user, "openid profile email", null);
@@ -266,7 +267,7 @@ public class CoreServicePropertyTests
         var authCodeRepo = CreateAuthorizationCodeRepository();
         var options = Options.Create(CreateTestTokenOptions());
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
         var user = CreateTestUser();
 
         var tokens = new HashSet<string>();
@@ -417,6 +418,21 @@ public class CoreServicePropertyTests
         RefreshTokenExpirationMinutes = 1440,
         IdTokenExpirationMinutes = 60
     };
+
+    private static TokenProvider CreateTestTokenProvider()
+    {
+        var providerOptions = Options.Create(new TokenProviderOptions
+        {
+            Algorithm = SigningAlgorithm.HS256,
+            SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
+            Issuer = "http://test-issuer",
+            AccessTokenExpirationMinutes = 10,
+            RefreshTokenExpirationMinutes = 1440,
+            IdTokenExpirationMinutes = 60,
+            ActionTokenExpirationMinutes = 1440
+        });
+        return new TokenProvider(providerOptions);
+    }
 
     #endregion
 }

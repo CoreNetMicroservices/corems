@@ -1,3 +1,4 @@
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Repositories;
@@ -43,7 +44,7 @@ public class TokenCleanupPropertyTests
         var authCodeRepo = Substitute.For<AuthorizationCodeRepository>(dbContext);
         var options = Options.Create(CreateTestTokenOptions());
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
 
         await service.CleanupExpiredTokensAsync(input.CancellationToken);
 
@@ -73,7 +74,7 @@ public class TokenCleanupPropertyTests
         loginTokenRepo.DeleteExpiredAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException(input.ErrorMessage));
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.CleanupExpiredTokensAsync());
@@ -98,7 +99,7 @@ public class TokenCleanupPropertyTests
         actionTokenRepo.DeleteExpiredAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException(input.ErrorMessage));
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.CleanupExpiredTokensAsync());
@@ -124,7 +125,7 @@ public class TokenCleanupPropertyTests
         authCodeRepo.DeleteExpiredAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException(input.ErrorMessage));
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.CleanupExpiredTokensAsync());
@@ -155,7 +156,7 @@ public class TokenCleanupPropertyTests
         using var cts = new CancellationTokenSource();
         var ct = cts.Token;
 
-        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options);
+        var service = new TokenService(loginTokenRepo, actionTokenRepo, authCodeRepo, options, CreateTestTokenProvider());
 
         await service.CleanupExpiredTokensAsync(ct);
 
@@ -177,6 +178,21 @@ public class TokenCleanupPropertyTests
         RefreshTokenExpirationMinutes = 1440,
         IdTokenExpirationMinutes = 60
     };
+
+    private static TokenProvider CreateTestTokenProvider()
+    {
+        var providerOptions = Options.Create(new TokenProviderOptions
+        {
+            Algorithm = SigningAlgorithm.HS256,
+            SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
+            Issuer = "http://test-issuer",
+            AccessTokenExpirationMinutes = 10,
+            RefreshTokenExpirationMinutes = 1440,
+            IdTokenExpirationMinutes = 60,
+            ActionTokenExpirationMinutes = 1440
+        });
+        return new TokenProvider(providerOptions);
+    }
 
     #endregion
 }

@@ -54,6 +54,14 @@ public class OAuth2IntegrationTests : IDisposable
                         ["Jwt:RefreshTokenExpirationMinutes"] = "1440",
                         ["Jwt:IdTokenExpirationMinutes"] = "60",
                         ["Jwt:AuthorizationCodeExpirationMinutes"] = "10",
+                        ["TokenProvider:SecretKey"] = "integration-test-secret-key-minimum-32-chars!!",
+                        ["TokenProvider:Issuer"] = "http://localhost",
+                        ["TokenProvider:Algorithm"] = "HS256",
+                        ["TokenProvider:KeyId"] = "test-key-1",
+                        ["TokenProvider:AccessTokenExpirationMinutes"] = "10",
+                        ["TokenProvider:RefreshTokenExpirationMinutes"] = "1440",
+                        ["TokenProvider:IdTokenExpirationMinutes"] = "60",
+                        ["TokenProvider:ActionTokenExpirationMinutes"] = "1440",
                         ["OAuth2Clients:Clients:0:ClientId"] = "corems-web",
                         ["OAuth2Clients:Clients:0:RedirectUris:0"] = "http://localhost:8080/callback",
                         ["OAuth2Clients:Clients:0:AllowedScopes:0"] = "openid",
@@ -254,10 +262,10 @@ public class OAuth2IntegrationTests : IDisposable
         var content = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonDocument.Parse(content).RootElement;
 
-        tokenResponse.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("refreshToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("tokenType").GetString().Should().Be("Bearer");
-        tokenResponse.GetProperty("expiresIn").GetInt32().Should().BeGreaterThan(0);
+        tokenResponse.GetProperty("access_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("refresh_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("token_type").GetString().Should().Be("Bearer");
+        tokenResponse.GetProperty("expires_in").GetInt32().Should().BeGreaterThan(0);
         tokenResponse.GetProperty("scope").GetString().Should().Contain("openid");
     }
 
@@ -279,7 +287,7 @@ public class OAuth2IntegrationTests : IDisposable
         var content = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonDocument.Parse(content).RootElement;
 
-        tokenResponse.GetProperty("idToken").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("id_token").GetString().Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -336,10 +344,10 @@ public class OAuth2IntegrationTests : IDisposable
         var content = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonDocument.Parse(content).RootElement;
 
-        tokenResponse.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("refreshToken").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("access_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("refresh_token").GetString().Should().NotBeNullOrEmpty();
         // Rotation: new refresh token must differ from old one
-        tokenResponse.GetProperty("refreshToken").GetString().Should().NotBe(refreshToken);
+        tokenResponse.GetProperty("refresh_token").GetString().Should().NotBe(refreshToken);
     }
 
     [Fact]
@@ -405,10 +413,10 @@ public class OAuth2IntegrationTests : IDisposable
         var content = await response.Content.ReadAsStringAsync();
         var tokenResponse = JsonDocument.Parse(content).RootElement;
 
-        tokenResponse.GetProperty("accessToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("refreshToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("idToken").GetString().Should().NotBeNullOrEmpty();
-        tokenResponse.GetProperty("tokenType").GetString().Should().Be("Bearer");
+        tokenResponse.GetProperty("access_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("refresh_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("id_token").GetString().Should().NotBeNullOrEmpty();
+        tokenResponse.GetProperty("token_type").GetString().Should().Be("Bearer");
     }
 
     [Fact]
@@ -606,7 +614,7 @@ public class OAuth2IntegrationTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var content = await response.Content.ReadAsStringAsync();
-        return JsonDocument.Parse(content).RootElement.GetProperty("refreshToken").GetString()!;
+        return JsonDocument.Parse(content).RootElement.GetProperty("refresh_token").GetString()!;
     }
 
     private void SeedAuthorizationCode(

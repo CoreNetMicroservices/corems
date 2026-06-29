@@ -10,6 +10,9 @@ obj/
 # User secrets
 secrets.json
 
+# kiro
+.kiro/specs/
+
 # NuGet
 *.nupkg
 local-packages/

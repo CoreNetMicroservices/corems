@@ -5,7 +5,6 @@
   </Folder>
   <Folder Name="/common/src/">
     <Project Path="common/src/CoreMs.Common/CoreMs.Common.csproj" />
-    <Project Path="common/src/CoreMs.Common.Security/CoreMs.Common.Security.csproj" />
   </Folder>
   <Folder Name="/common/test/">
     <Project Path="common/test/CoreMs.Common.Tests/CoreMs.Common.Tests.csproj" />

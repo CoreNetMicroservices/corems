@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using CoreMs.Common.Exceptions;
 using CoreMs.Common.Extensions;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Enums;
 using CoreMs.UserMs.Core.Exceptions;
@@ -14,7 +15,8 @@ namespace CoreMs.UserMs.Core.Services;
 public class RegistrationService(
     UserRepository userRepository,
     ActionTokenRepository actionTokenRepository,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    TokenProvider tokenProvider)
 {
     private const int BcryptWorkFactor = 12;
     private static readonly TimeSpan TokenExpiration = TimeSpan.FromHours(24);
@@ -47,7 +49,8 @@ public class RegistrationService(
         user.Roles.Add(new UserRoleEntity { Name = "USER_MS_USER" });
         userRepository.Add(user);
 
-        var (rawToken, tokenHash) = GenerateActionToken();
+        var rawToken = tokenProvider.CreateActionToken(user.Uuid.ToString(), "email_verification");
+        var tokenHash = ComputeSha256Hash(rawToken);
         var actionToken = new ActionTokenEntity
         {
             UserId = user.Id,
@@ -62,7 +65,8 @@ public class RegistrationService(
 
         if (user.PhoneNumber is not null)
         {
-            var (phoneCode, phoneHash) = GenerateActionToken();
+            var phoneCode = tokenProvider.CreateActionToken(user.Uuid.ToString(), "phone_verification");
+            var phoneHash = ComputeSha256Hash(phoneCode);
             var phoneToken = new ActionTokenEntity
             {
                 UserId = user.Id,
@@ -81,6 +85,15 @@ public class RegistrationService(
 
     public async Task VerifyEmailAsync(string email, string token, CancellationToken ct = default)
     {
+        try
+        {
+            tokenProvider.ValidateToken(token);
+        }
+        catch (Exception)
+        {
+            throw ServiceException.Of(UserErrors.InvalidToken, "Invalid or expired verification token");
+        }
+
         var tokenHash = ComputeSha256Hash(token);
         var actionToken = await actionTokenRepository.GetByTokenHashAsync(tokenHash, ct)
             ?? throw ServiceException.Of(UserErrors.InvalidToken, "Invalid or expired verification token");
@@ -104,6 +117,15 @@ public class RegistrationService(
 
     public async Task VerifyPhoneAsync(string phoneNumber, string code, CancellationToken ct = default)
     {
+        try
+        {
+            tokenProvider.ValidateToken(code);
+        }
+        catch (Exception)
+        {
+            throw ServiceException.Of(UserErrors.InvalidToken, "Invalid or expired verification code");
+        }
+
         var tokenHash = ComputeSha256Hash(code);
         var actionToken = await actionTokenRepository.GetByTokenHashAsync(tokenHash, ct)
             ?? throw ServiceException.Of(UserErrors.InvalidToken, "Invalid or expired verification code");
@@ -139,7 +161,9 @@ public class RegistrationService(
 
         await actionTokenRepository.DeleteByUserIdAndActionTypeAsync(user.Id, actionType, ct);
 
-        var (rawToken, tokenHash) = GenerateActionToken();
+        var actionTypeStr = actionType == ActionTokenType.EmailVerification ? "email_verification" : "phone_verification";
+        var rawToken = tokenProvider.CreateActionToken(user.Uuid.ToString(), actionTypeStr);
+        var tokenHash = ComputeSha256Hash(rawToken);
         var actionToken = new ActionTokenEntity
         {
             UserId = user.Id,
@@ -166,17 +190,6 @@ public class RegistrationService(
 
         if (token.ExpiresAt < DateTime.UtcNow)
             throw ServiceException.Of(UserErrors.TokenExpired, "Token has expired");
-    }
-
-    private static (string RawToken, string TokenHash) GenerateActionToken()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(32);
-        var rawToken = Convert.ToBase64String(bytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
-        var tokenHash = ComputeSha256Hash(rawToken);
-        return (rawToken, tokenHash);
     }
 
     private static string ComputeSha256Hash(string input)

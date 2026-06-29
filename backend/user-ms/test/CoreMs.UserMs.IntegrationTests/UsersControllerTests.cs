@@ -151,7 +151,7 @@ public class UsersControllerTests : IClassFixture<InMemoryWebApplicationFactory>
 
         var user = await response.Content.ReadFromJsonAsync<UserInfoDto>();
         user.Should().NotBeNull();
-        user!.Uuid.Should().Be(_seededUserUuid);
+        user!.UserId.Should().Be(_seededUserUuid);
         user.FirstName.Should().Be("Test");
         user.LastName.Should().Be("User");
         user.Roles.Should().Contain("USER_MS_USER");
@@ -192,7 +192,7 @@ public class UsersControllerTests : IClassFixture<InMemoryWebApplicationFactory>
             ImageUrl: null,
             Roles: null);
 
-        var response = await _adminClient.PutAsJsonAsync($"/api/users/{created!.Uuid}", updateRequest);
+        var response = await _adminClient.PutAsJsonAsync($"/api/users/{created!.UserId}", updateRequest);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -222,12 +222,12 @@ public class UsersControllerTests : IClassFixture<InMemoryWebApplicationFactory>
         var created = await createResponse.Content.ReadFromJsonAsync<UserInfoDto>();
 
         // Delete the user
-        var response = await _adminClient.DeleteAsync($"/api/users/{created!.Uuid}");
+        var response = await _adminClient.DeleteAsync($"/api/users/{created!.UserId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verify deleted
-        var getResponse = await _adminClient.GetAsync($"/api/users/{created.Uuid}");
+        var getResponse = await _adminClient.GetAsync($"/api/users/{created.UserId}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -276,7 +276,7 @@ public class UsersControllerTests : IClassFixture<InMemoryWebApplicationFactory>
         var request = new { NewEmail = $"newemail-{Guid.NewGuid():N}@example.com" };
 
         var response = await _adminClient.PostAsJsonAsync(
-            $"/api/users/{created!.Uuid}/change-email", request);
+            $"/api/users/{created!.UserId}/change-email", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using CoreMs.Common.Exceptions;
 using CoreMs.Common.Extensions;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Enums;
 using CoreMs.UserMs.Core.Exceptions;
@@ -14,7 +15,8 @@ public class PasswordService(
     UserRepository userRepository,
     ActionTokenRepository actionTokenRepository,
     TokenService tokenService,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    TokenProvider tokenProvider)
 {
     private const int BcryptWorkFactor = 12;
     private static readonly TimeSpan TokenExpiration = TimeSpan.FromHours(1);
@@ -26,7 +28,8 @@ public class PasswordService(
 
         await actionTokenRepository.DeleteByUserIdAndActionTypeAsync(user.Id, ActionTokenType.PasswordReset, ct);
 
-        var (rawToken, tokenHash) = GenerateActionToken();
+        var rawToken = tokenProvider.CreateActionToken(user.Uuid.ToString(), "password_reset");
+        var tokenHash = ComputeSha256Hash(rawToken);
         var actionToken = new ActionTokenEntity
         {
             UserId = user.Id,
@@ -44,6 +47,15 @@ public class PasswordService(
     {
         if (newPassword != confirmPassword)
             throw ServiceException.Of(UserErrors.PasswordMismatch, "Password confirmation does not match");
+
+        try
+        {
+            tokenProvider.ValidateToken(token);
+        }
+        catch (Exception)
+        {
+            throw ServiceException.Of(UserErrors.InvalidToken, "Invalid or expired reset token");
+        }
 
         var tokenHash = ComputeSha256Hash(token);
         var actionToken = await actionTokenRepository.GetByTokenHashAsync(tokenHash, ct)
@@ -73,17 +85,6 @@ public class PasswordService(
         actionTokenRepository.Update(actionToken);
 
         await tokenService.RevokeAllUserTokensAsync(user.Id, ct);
-    }
-
-    private static (string RawToken, string TokenHash) GenerateActionToken()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(32);
-        var rawToken = Convert.ToBase64String(bytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
-        var tokenHash = ComputeSha256Hash(rawToken);
-        return (rawToken, tokenHash);
     }
 
     private static string ComputeSha256Hash(string input)

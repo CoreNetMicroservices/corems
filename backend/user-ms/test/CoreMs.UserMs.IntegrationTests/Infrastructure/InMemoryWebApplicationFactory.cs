@@ -1,13 +1,17 @@
+using CoreMs.CommunicationMs.Client;
+using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace CoreMs.UserMs.IntegrationTests.Infrastructure;
@@ -24,6 +28,17 @@ public class InMemoryWebApplicationFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["TokenProvider:SecretKey"] = "integration-test-secret-key-minimum-32-chars!",
+                ["TokenProvider:Issuer"] = "corems-test",
+                ["TokenProvider:Algorithm"] = "HS256",
+                ["App:FrontendBaseUrl"] = "http://localhost:8080"
+            });
+        });
 
         builder.ConfigureServices(services =>
         {
@@ -68,9 +83,11 @@ public class InMemoryWebApplicationFactory : WebApplicationFactory<Program>
             services.AddScoped<DbContext>(sp =>
                 sp.GetRequiredService<UserMsDbContext>());
 
-            // Stub NotificationService to avoid real messaging
-            services.RemoveAll<NotificationService>();
-            services.AddScoped(_ => Substitute.For<NotificationService>(Substitute.For<ILogger<NotificationService>>()));
+            // Stub CommunicationMsClient with a no-op HttpClient (returns 200 for all requests)
+            services.RemoveAll<CommunicationMsClient>();
+            var mockHandler = new NoOpHttpMessageHandler();
+            services.AddScoped(_ => new CommunicationMsClient(
+                new HttpClient(mockHandler) { BaseAddress = new Uri("http://localhost") }));
 
             // Replace authentication with test handler for role injection
             var authDescriptors = services
@@ -125,5 +142,20 @@ public class InMemoryWebApplicationFactory : WebApplicationFactory<Program>
             new System.Net.Http.Headers.AuthenticationHeaderValue(
                 "Bearer", $"{userId}|{rolesStr}");
         return client;
+    }
+}
+
+/// <summary>
+/// HTTP message handler that returns 200 OK for all requests without making real network calls.
+/// </summary>
+internal class NoOpHttpMessageHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("{}")
+        });
     }
 }

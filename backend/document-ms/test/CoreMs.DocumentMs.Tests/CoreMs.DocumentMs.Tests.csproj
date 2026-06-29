@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.DocumentMs.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(SolutionRoot)document-ms\src\CoreMs.DocumentMs.Api\CoreMs.DocumentMs.Api.csproj" />
+    <ProjectReference Include="$(SolutionRoot)document-ms\src\CoreMs.DocumentMs.Core\CoreMs.DocumentMs.Core.csproj" />
+    <ProjectReference Include="$(SolutionRoot)document-ms\src\CoreMs.DocumentMs.Infrastructure\CoreMs.DocumentMs.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FsCheck" />
+    <PackageReference Include="FsCheck.Xunit" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+</Project>

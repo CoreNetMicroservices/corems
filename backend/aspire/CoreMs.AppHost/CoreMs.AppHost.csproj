@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)user-ms\src\CoreMs.UserMs.Api\CoreMs.UserMs.Api.csproj" />
     <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Api\CoreMs.CommunicationMs.Api.csproj" />
+    <ProjectReference Include="$(SolutionRoot)document-ms\src\CoreMs.DocumentMs.Api\CoreMs.DocumentMs.Api.csproj" />
   </ItemGroup>
 
 </Project>

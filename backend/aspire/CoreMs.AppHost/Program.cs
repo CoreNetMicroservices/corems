@@ -37,10 +37,20 @@ var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithEnvironment("SocialAuth__LinkedIn__ClientId", secrets["LinkedInClientId"] ?? "")
     .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", secrets["LinkedInClientSecret"] ?? "");
 
+var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
+    .WithEnvironment("Storage__AccessKey", secrets["MinioAccessKey"] ?? "minioadmin")
+    .WithEnvironment("Storage__SecretKey", secrets["MinioSecretKey"] ?? "minioadmin")
+    .WithEnvironment("Document__LinkSigningKey", secrets["DocumentLinkSigningKey"] ?? "");
+
 var frontend = builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")
     .WithEnvironment("REACT_USER_MS_BASE_URL", userMs.GetEndpoint("http"))
     .WithEnvironment("REACT_COMMUNICATION_MS_BASE_URL", communicationMs.GetEndpoint("http"))
+    .WithEnvironment("REACT_DOCUMENT_MS_BASE_URL", documentMs.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

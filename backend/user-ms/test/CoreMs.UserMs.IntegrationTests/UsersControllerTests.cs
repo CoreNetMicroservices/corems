@@ -70,7 +70,7 @@ public class UsersControllerTests : IClassFixture<InMemoryWebApplicationFactory>
         result!.Items.Should().NotBeEmpty();
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(10);
-        result.TotalCount.Should().BeGreaterOrEqualTo(1);
+        result.TotalElements.Should().BeGreaterOrEqualTo(1);
     }
 
     [Fact]

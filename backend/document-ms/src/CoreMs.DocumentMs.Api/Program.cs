@@ -118,6 +118,7 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
+        options.Events = JwtBearerEventsHandler.Create();
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -159,6 +160,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
+app.UseCoreMsStatusCodePages();
 app.UseCors();
 app.UseMiddleware<AutoSaveChangesMiddleware>();
 app.UseAuthentication();

@@ -107,10 +107,10 @@ public class PaginationCompletenessTests
     [Property(MaxTest = 50, Arbitrary = [typeof(PaginationArbitraries)])]
     public void ListDocuments_PreservesPaginationMetadata(PaginationInput input)
     {
-        var itemCount = Math.Min(input.PageSize, Math.Max(0, input.TotalCount - (input.Page - 1) * input.PageSize));
+        var itemCount = Math.Min(input.PageSize, Math.Max(0, input.TotalElements - (input.Page - 1) * input.PageSize));
         var entities = Enumerable.Range(0, itemCount).Select(CreateEntity).ToList();
 
-        var repoResult = new PagedResult<DocumentEntity>(entities, input.TotalCount, input.Page, input.PageSize);
+        var repoResult = new PagedResult<DocumentEntity>(entities, input.TotalElements, input.Page, input.PageSize);
 
         _documentRepository.GetPagedAsync(Arg.Any<QueryParameters>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(repoResult));
@@ -120,7 +120,7 @@ public class PaginationCompletenessTests
 
         Assert.Equal(input.Page, result.Page);
         Assert.Equal(input.PageSize, result.PageSize);
-        Assert.Equal(input.TotalCount, result.TotalCount);
+        Assert.Equal(input.TotalElements, result.TotalElements);
         Assert.Equal(itemCount, result.Items.Count);
     }
 
@@ -238,7 +238,7 @@ public class PaginationCompletenessTests
         var result = await _sut.ListDocumentsAsync(parameters);
 
         result.Items.Should().BeEmpty();
-        result.TotalCount.Should().Be(0);
+        result.TotalElements.Should().Be(0);
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(20);
     }

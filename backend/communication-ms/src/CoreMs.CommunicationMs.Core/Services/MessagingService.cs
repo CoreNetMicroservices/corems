@@ -34,7 +34,7 @@ public class MessagingService
         var result = await _messageRepository.GetPagedAsync(parameters, ct);
 
         var items = result.Items.Select(MapToResponse).ToList();
-        return new PagedResult<MessageResponse>(items, result.TotalCount, result.Page, result.PageSize);
+        return new PagedResult<MessageResponse>(items, result.TotalElements, result.Page, result.PageSize);
     }
 
     private static MessageResponse MapToResponse(MessageEntity entity)

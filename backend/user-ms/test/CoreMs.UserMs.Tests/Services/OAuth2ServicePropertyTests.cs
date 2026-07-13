@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using CoreMs.Common.Exceptions;
 using CoreMs.Common.Security;
-using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Repositories;
 using CoreMs.UserMs.Core.Services;
@@ -369,14 +368,16 @@ public class OAuth2ServicePropertyTests
         UpdatedAt = DateTime.UtcNow
     };
 
-    private static TokenServiceOptions CreateTestTokenOptions() => new()
+    private static TokenProviderOptions CreateTestTokenOptions() => new()
     {
+        Algorithm = SigningAlgorithm.HS256,
         Issuer = "http://test-issuer",
         Audience = "test-audience",
         SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
         AccessTokenExpirationMinutes = 10,
         RefreshTokenExpirationMinutes = 1440,
-        IdTokenExpirationMinutes = 60
+        IdTokenExpirationMinutes = 60,
+        ActionTokenExpirationMinutes = 1440
     };
 
     private static AuthorizationCodeEntity CreateAuthCode(

@@ -1,5 +1,4 @@
 using CoreMs.Common.Security;
-using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Repositories;
 using CoreMs.UserMs.Core.Services;
@@ -169,28 +168,21 @@ public class TokenCleanupPropertyTests
 
     #region Helpers
 
-    private static TokenServiceOptions CreateTestTokenOptions() => new()
+    private static TokenProviderOptions CreateTestTokenOptions() => new()
     {
+        Algorithm = SigningAlgorithm.HS256,
         Issuer = "http://test-issuer",
         Audience = "test-audience",
         SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
         AccessTokenExpirationMinutes = 10,
         RefreshTokenExpirationMinutes = 1440,
-        IdTokenExpirationMinutes = 60
+        IdTokenExpirationMinutes = 60,
+        ActionTokenExpirationMinutes = 1440
     };
 
     private static TokenProvider CreateTestTokenProvider()
     {
-        var providerOptions = Options.Create(new TokenProviderOptions
-        {
-            Algorithm = SigningAlgorithm.HS256,
-            SecretKey = "ThisIsATestSecretKeyThatIsLongEnoughForHmacSha256!",
-            Issuer = "http://test-issuer",
-            AccessTokenExpirationMinutes = 10,
-            RefreshTokenExpirationMinutes = 1440,
-            IdTokenExpirationMinutes = 60,
-            ActionTokenExpirationMinutes = 1440
-        });
+        var providerOptions = Options.Create(CreateTestTokenOptions());
         return new TokenProvider(providerOptions);
     }
 

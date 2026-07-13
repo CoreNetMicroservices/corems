@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import i18n from 'i18next';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { I18nContext } from './I18nContext';
@@ -68,6 +68,14 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
   );
   const [currentLanguage, setCurrentLanguage] = useState(defaultLanguage);
 
+  // Store loader and realm in refs to avoid stale closures and effect re-runs
+  const loaderRef = useRef(loader);
+  const realmRef = useRef(realm);
+  const staticTranslationsRef = useRef(staticTranslations);
+  loaderRef.current = loader;
+  realmRef.current = realm;
+  staticTranslationsRef.current = staticTranslations;
+
   useEffect(() => {
     let mounted = true;
     const missingKeys: Record<string, string> = {};
@@ -127,35 +135,14 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
             : undefined,
         });
 
-        // If using API loader, load and merge translations
+        // If using API loader, load and merge translations for initial language
         if (loader) {
-          // Load initial language from API and merge with defaults
           try {
             const apiTranslations = await loader(realm, storedLanguage);
-            // addResourceBundle with deep=true and overwrite=true merges API on top of defaults
             i18n.addResourceBundle(storedLanguage, 'translation', apiTranslations, true, true);
           } catch (error) {
             console.error(`Failed to load translations for ${storedLanguage}:`, error);
-            // Defaults remain in place if API fails
           }
-
-          // Override changeLanguage to load from API and merge
-          const originalChangeLanguage = i18n.changeLanguage.bind(i18n);
-          i18n.changeLanguage = async (lang: string) => {
-            // First, ensure static defaults are loaded for this language
-            if (staticTranslations && staticTranslations[lang]) {
-              i18n.addResourceBundle(lang, 'translation', staticTranslations[lang], true, false);
-            }
-            // Then try to load and merge API translations
-            try {
-              const apiTranslations = await loader(realm, lang);
-              i18n.addResourceBundle(lang, 'translation', apiTranslations, true, true);
-            } catch (error) {
-              console.error(`Failed to load translations for ${lang}:`, error);
-              // Defaults remain in place if API fails
-            }
-            return originalChangeLanguage(lang);
-          };
         }
 
         // Load available languages from API
@@ -167,7 +154,6 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
             }
           } catch (error) {
             console.error('Failed to load available languages:', error);
-            // Keep static availableLanguages or defaults
           }
         }
       } catch (e) {
@@ -180,15 +166,30 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
 
     return () => {
       mounted = false;
-      // Clear timer on unmount
       if (missingKeysTimer) {
         clearTimeout(missingKeysTimer);
       }
     };
   }, [realm, defaultLanguage, fallbackLanguage, loader, languagesLoader, staticTranslations, availableLanguages]);
 
-  const changeLanguage = (lang: string) => {
-    i18n.changeLanguage(lang);
+  const changeLanguage = async (lang: string) => {
+    // Load static defaults for this language
+    if (staticTranslationsRef.current && staticTranslationsRef.current[lang]) {
+      i18n.addResourceBundle(lang, 'translation', staticTranslationsRef.current[lang], true, false);
+    }
+
+    // Load and merge API translations (single request)
+    if (loaderRef.current) {
+      try {
+        const apiTranslations = await loaderRef.current(realmRef.current, lang);
+        i18n.addResourceBundle(lang, 'translation', apiTranslations, true, true);
+      } catch (error) {
+        console.error(`Failed to load translations for ${lang}:`, error);
+      }
+    }
+
+    // Switch language in i18next (no override — just the original)
+    await i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
     setCurrentLanguage(lang);
   };

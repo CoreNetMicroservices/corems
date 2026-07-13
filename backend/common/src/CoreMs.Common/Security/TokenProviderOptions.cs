@@ -2,7 +2,7 @@ namespace CoreMs.Common.Security;
 
 public class TokenProviderOptions
 {
-    public const string SectionName = "TokenProvider";
+    public const string SectionName = "Jwt";
 
     public SigningAlgorithm Algorithm { get; set; } = SigningAlgorithm.HS256;
 
@@ -17,6 +17,7 @@ public class TokenProviderOptions
 
     // Token metadata
     public string Issuer { get; set; } = string.Empty;
+    public string Audience { get; set; } = "corems";
     public string KeyId { get; set; } = string.Empty;
 
     // Per-type expiration (minutes)

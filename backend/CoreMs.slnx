@@ -32,4 +32,12 @@
   <Folder Name="/document-ms/test/">
     <Project Path="document-ms/test/CoreMs.DocumentMs.Tests/CoreMs.DocumentMs.Tests.csproj" />
   </Folder>
+  <Folder Name="/translation-ms/src/">
+    <Project Path="translation-ms/src/CoreMs.TranslationMs.Api/CoreMs.TranslationMs.Api.csproj" />
+    <Project Path="translation-ms/src/CoreMs.TranslationMs.Core/CoreMs.TranslationMs.Core.csproj" />
+    <Project Path="translation-ms/src/CoreMs.TranslationMs.Infrastructure/CoreMs.TranslationMs.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/translation-ms/test/">
+    <Project Path="translation-ms/test/CoreMs.TranslationMs.Tests/CoreMs.TranslationMs.Tests.csproj" />
+  </Folder>
 </Solution>

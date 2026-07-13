@@ -63,7 +63,7 @@ public class SortOrderingCorrectnessTests
         result.Items[0].Name.Should().Be("A-document");
         result.Items[1].Name.Should().Be("B-document");
         result.Items[2].Name.Should().Be("C-document");
-        result.TotalCount.Should().Be(3);
+        result.TotalElements.Should().Be(3);
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(20);
     }

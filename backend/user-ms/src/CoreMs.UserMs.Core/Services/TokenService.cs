@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using CoreMs.Common.Exceptions;
 using CoreMs.Common.Extensions;
 using CoreMs.Common.Security;
-using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Entities;
 using CoreMs.UserMs.Core.Exceptions;
 using CoreMs.UserMs.Core.Models;
@@ -17,14 +16,14 @@ public class TokenService
     private readonly LoginTokenRepository _loginTokenRepository;
     private readonly ActionTokenRepository _actionTokenRepository;
     private readonly AuthorizationCodeRepository _authorizationCodeRepository;
-    private readonly TokenServiceOptions _options;
+    private readonly TokenProviderOptions _options;
     private readonly TokenProvider _tokenProvider;
 
     public TokenService(
         LoginTokenRepository loginTokenRepository,
         ActionTokenRepository actionTokenRepository,
         AuthorizationCodeRepository authorizationCodeRepository,
-        IOptions<TokenServiceOptions> options,
+        IOptions<TokenProviderOptions> options,
         TokenProvider tokenProvider)
     {
         _loginTokenRepository = loginTokenRepository;
@@ -92,7 +91,7 @@ public class TokenService
         {
             [TokenProvider.ClaimEmail] = user.Email,
             ["scope"] = scopes,
-            [TokenProvider.ClaimRoles] = string.Join(",", roles)
+            ["role"] = roles
         };
 
         return _tokenProvider.CreateAccessToken(user.Uuid.ToString(), claims);

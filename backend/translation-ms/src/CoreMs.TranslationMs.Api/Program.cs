@@ -1,0 +1,164 @@
+using CoreMs.Common.Data;
+using CoreMs.Common.Extensions;
+using CoreMs.Common.Middleware;
+using CoreMs.Common.Security;
+using CoreMs.ServiceDefaults;
+using CoreMs.TranslationMs.Core.Services;
+using CoreMs.TranslationMs.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Aspire service defaults (OpenTelemetry, health checks, service discovery)
+builder.AddServiceDefaults();
+
+// CORS (allow frontend origin)
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? ["http://localhost:8080"])
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// Controllers + JSON options
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
+// Swagger / OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Translation Service",
+        Version = "v1",
+        Description = "Translation bundle management for internationalization"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter your JWT token"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+// Database (Aspire-managed: connection name "corems" matches AppHost database name)
+builder.AddNpgsqlDbContext<TranslationMsDbContext>("corems");
+builder.Services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<TranslationMsDbContext>());
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<TranslationMsDbContext>());
+
+// Auto-register services and repositories by convention ([Service] / [Repository])
+builder.Services.AddCoreMsServices(typeof(TranslationService).Assembly);
+
+// FluentValidation — scan validators and register ValidationFilter
+builder.Services.AddCoreMsValidation(typeof(Program).Assembly);
+
+// Exception handling
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// Security (ICurrentUserService + HttpContextAccessor)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Authentication (JWT Bearer — shared key from user-ms issuer)
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtIssuer = jwtSection["Issuer"] ?? "http://localhost:5100";
+var jwtAudience = jwtSection["Audience"] ?? "corems";
+var jwtSecretKey = jwtSection["SecretKey"] ?? "";
+var signingKey = string.IsNullOrEmpty(jwtSecretKey)
+    ? new SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+    : new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey));
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.Events = JwtBearerEventsHandler.Create();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = "sub",
+            RoleClaimType = "role"
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("corems") ?? "", name: "postgresql");
+
+var app = builder.Build();
+
+// Auto-migrate and seed in Development
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<TranslationMsDbContext>();
+    await db.Database.MigrateAsync();
+
+    var seeder = new SeedDataService(
+        db,
+        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>());
+    await seeder.SeedAsync();
+}
+
+// Middleware pipeline (order matters)
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseExceptionHandler();
+app.UseCoreMsStatusCodePages();
+app.UseCors();
+app.UseMiddleware<AutoSaveChangesMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapDefaultEndpoints();
+
+app.Run();
+
+public partial class Program { }

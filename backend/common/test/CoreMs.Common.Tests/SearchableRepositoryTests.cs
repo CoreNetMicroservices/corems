@@ -76,7 +76,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters { PageSize = 20 });
 
-        result.TotalCount.Should().Be(6);
+        result.TotalElements.Should().Be(6);
         result.Items.Should().HaveCount(6);
         result.Page.Should().Be(1);
     }
@@ -115,7 +115,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters { Search = "zzz" });
 
-        result.TotalCount.Should().Be(0);
+        result.TotalElements.Should().Be(0);
         result.Items.Should().BeEmpty();
     }
 
@@ -191,7 +191,7 @@ public class SearchableRepositoryTests : IDisposable
         var result = await _repository.GetPagedAsync(new QueryParameters { PageSize = 2 });
 
         result.Items.Should().HaveCount(2);
-        result.TotalCount.Should().Be(6);
+        result.TotalElements.Should().Be(6);
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         result.Items.Should().OnlyContain(e => e.IsActive);
-        result.TotalCount.Should().Be(4);
+        result.TotalElements.Should().Be(4);
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         result.Items.Should().OnlyContain(e => e.Provider == "google" || e.Provider == "github");
-        result.TotalCount.Should().Be(4);
+        result.TotalElements.Should().Be(4);
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         result.Items.Should().OnlyContain(e => e.CreatedAt >= new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc));
-        result.TotalCount.Should().Be(3);
+        result.TotalElements.Should().Be(3);
     }
 
     [Fact]
@@ -280,7 +280,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         result.Items.Should().OnlyContain(e => e.CreatedAt < new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc));
-        result.TotalCount.Should().Be(2);
+        result.TotalElements.Should().Be(2);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         result.Items.Should().OnlyContain(e => e.IsActive && e.Provider == "google");
-        result.TotalCount.Should().Be(2);
+        result.TotalElements.Should().Be(2);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public class SearchableRepositoryTests : IDisposable
         });
 
         // Name is not in FilterFields, so filter is ignored — all items returned
-        result.TotalCount.Should().Be(6);
+        result.TotalElements.Should().Be(6);
     }
 
     [Fact]

@@ -31,7 +31,7 @@ public class UsersController : ControllerBase
         var result = await _userService.GetAllUsersAsync(parameters, ct);
         var mapped = new PagedResult<UserInfoDto>(
             result.Items.Select(u => u.ToUserInfoDto()).ToList(),
-            result.TotalCount,
+            result.TotalElements,
             result.Page,
             result.PageSize);
         return Ok(mapped);

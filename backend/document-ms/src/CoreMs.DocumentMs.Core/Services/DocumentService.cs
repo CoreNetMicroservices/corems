@@ -162,7 +162,7 @@ public class DocumentService(
 
         return new PagedResult<DocumentDto>(
             result.Items.Select(MapToDto).ToList(),
-            result.TotalCount,
+            result.TotalElements,
             result.Page,
             result.PageSize
         );

@@ -1,5 +1,4 @@
 using CoreMs.CommunicationMs.Client;
-using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication;
@@ -33,9 +32,9 @@ public class InMemoryWebApplicationFactory : WebApplicationFactory<Program>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["TokenProvider:SecretKey"] = "integration-test-secret-key-minimum-32-chars!",
-                ["TokenProvider:Issuer"] = "corems-test",
-                ["TokenProvider:Algorithm"] = "HS256",
+                ["Jwt:SecretKey"] = "integration-test-secret-key-minimum-32-chars!",
+                ["Jwt:Issuer"] = "corems-test",
+                ["Jwt:Algorithm"] = "HS256",
                 ["App:FrontendBaseUrl"] = "http://localhost:8080"
             });
         });

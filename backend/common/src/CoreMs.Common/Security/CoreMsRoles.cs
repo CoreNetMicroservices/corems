@@ -10,4 +10,5 @@ public static class CoreMsRoles
     public const string UserMsUser = "USER_MS_USER";
     public const string DocumentMsAdmin = "DOCUMENT_MS_ADMIN";
     public const string DocumentMsUser = "DOCUMENT_MS_USER";
+    public const string TranslationMsAdmin = "TRANSLATION_MS_ADMIN";
 }

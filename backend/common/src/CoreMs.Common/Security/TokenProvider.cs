@@ -151,6 +151,7 @@ public class TokenProvider
             Subject = BuildClaimsIdentity(subject, jti, now, claims),
             Expires = now.AddMinutes(expirationMinutes),
             Issuer = _options.Issuer,
+            Audience = string.IsNullOrEmpty(_options.Audience) ? null : _options.Audience,
             IssuedAt = now,
             NotBefore = now,
             SigningCredentials = _signingCredentials
@@ -177,7 +178,15 @@ public class TokenProvider
         {
             foreach (var (key, value) in claims)
             {
-                identity.AddClaim(new Claim(key, value?.ToString() ?? ""));
+                if (value is IEnumerable<string> values)
+                {
+                    foreach (var v in values)
+                        identity.AddClaim(new Claim(key, v));
+                }
+                else
+                {
+                    identity.AddClaim(new Claim(key, value?.ToString() ?? ""));
+                }
             }
         }
 

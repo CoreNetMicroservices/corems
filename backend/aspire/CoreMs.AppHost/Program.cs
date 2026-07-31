@@ -67,12 +67,19 @@ var translationMs = builder.AddProject<Projects.CoreMs_TranslationMs_Api>("trans
     .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
 
+var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms")
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
+
 var frontend = builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")
     .WithEnvironment("REACT_USER_MS_BASE_URL", userMs.GetEndpoint("http"))
     .WithEnvironment("REACT_COMMUNICATION_MS_BASE_URL", communicationMs.GetEndpoint("http"))
     .WithEnvironment("REACT_DOCUMENT_MS_BASE_URL", documentMs.GetEndpoint("http"))
     .WithEnvironment("REACT_TRANSLATION_MS_BASE_URL", translationMs.GetEndpoint("http"))
+    .WithEnvironment("REACT_TEMPLATE_MS_BASE_URL", templateMs.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

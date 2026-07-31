@@ -108,4 +108,8 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Template Engine">
+    <PackageVersion Include="Handlebars.Net" Version="2.1.6" />
+  </ItemGroup>
+
 </Project>

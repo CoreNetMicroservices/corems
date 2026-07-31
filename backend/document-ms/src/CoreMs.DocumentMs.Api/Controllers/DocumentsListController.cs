@@ -19,7 +19,7 @@ public class DocumentsListController(DocumentService documentService) : Controll
     /// <summary>
     /// Upload a file via multipart form data.
     /// </summary>
-    [HttpPost("upload")]
+    [HttpPost]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DocumentDto>> Upload(
@@ -48,7 +48,7 @@ public class DocumentsListController(DocumentService documentService) : Controll
     /// <summary>
     /// Upload a file via Base64 encoded content.
     /// </summary>
-    [HttpPost("upload/base64")]
+    [HttpPost("base64")]
     [ProducesResponseType(typeof(DocumentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DocumentDto>> UploadBase64([FromBody] UploadBase64Request request, CancellationToken ct)

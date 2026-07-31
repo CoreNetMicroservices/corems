@@ -379,8 +379,8 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
                 </p>
                 <p className="mb-2">
                   <strong>{t("document.tags", "Tags")}:</strong>{" "}
-                  {document.tags ? (
-                    document.tags.split(",").map((tag) => (
+                  {document.tags && document.tags.length > 0 ? (
+                    (Array.isArray(document.tags) ? document.tags : document.tags.split(",")).map((tag: string) => (
                       <Badge key={tag} bg="secondary" className="me-1">
                         {tag.trim()}
                       </Badge>

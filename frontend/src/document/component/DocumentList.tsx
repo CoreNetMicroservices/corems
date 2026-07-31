@@ -223,8 +223,8 @@ const DocumentList: React.FC<DocumentListProps> = ({ userId }) => {
           )}
         </td>
         <td>
-          {doc.tags ? (
-            doc.tags.split(",").map((tag) => (
+          {doc.tags && doc.tags.length > 0 ? (
+            (Array.isArray(doc.tags) ? doc.tags : doc.tags.split(",")).map((tag: string) => (
               <Badge key={tag} bg="secondary" className="me-1">
                 {tag.trim()}
               </Badge>

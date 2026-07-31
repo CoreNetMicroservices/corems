@@ -174,7 +174,7 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddCoreMsAuthorization();
 
 // Rate limiting (Requirements 16.3, 16.4, 16.5)
 builder.Services.AddRateLimiter(options =>

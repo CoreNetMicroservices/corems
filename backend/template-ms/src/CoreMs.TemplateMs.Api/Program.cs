@@ -1,24 +1,24 @@
+using System.Reflection;
+using System.Text;
 using CoreMs.Common.Data;
 using CoreMs.Common.Extensions;
 using CoreMs.Common.Middleware;
 using CoreMs.Common.Security;
 using CoreMs.ServiceDefaults;
-using CoreMs.DocumentMs.Api.Services;
-using CoreMs.DocumentMs.Core.Configuration;
-using CoreMs.DocumentMs.Core.Services;
-using CoreMs.DocumentMs.Infrastructure.Data;
+using CoreMs.TemplateMs.Api.Services;
+using CoreMs.TemplateMs.Core.Services;
+using CoreMs.TemplateMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Aspire service defaults (OpenTelemetry, health checks, service discovery)
+// Aspire service defaults
 builder.AddServiceDefaults();
 
-// CORS (allow frontend origin)
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -32,24 +32,23 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Controllers + JSON options
+// Controllers + JSON
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// Swagger / OpenAPI
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Document Management Service",
+        Title = "Template Management Service",
         Version = "v1",
-        Description = "File storage and document management with visibility-based access control"
+        Description = "Template CRUD, rendering, and caching service"
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -70,43 +69,35 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
 });
 
-// Database (Aspire-managed: connection name "corems" matches AppHost database name)
-builder.AddNpgsqlDbContext<DocumentMsDbContext>("corems");
-builder.Services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<DocumentMsDbContext>());
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<DocumentMsDbContext>());
+// Database (Aspire-managed)
+builder.AddNpgsqlDbContext<TemplateMsDbContext>("corems");
+builder.Services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<TemplateMsDbContext>());
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<TemplateMsDbContext>());
 
-// Auto-register services and repositories by convention ([Service] / [Repository])
-builder.Services.AddCoreMsServices(typeof(DocumentService).Assembly);
+// Auto-register services and repositories
+builder.Services.AddCoreMsServices(typeof(TemplateService).Assembly);
 
-// FluentValidation — scan validators and register ValidationFilter
+// FluentValidation
 builder.Services.AddCoreMsValidation(typeof(Program).Assembly);
 
 // Exception handling
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// Configuration (Options pattern with validation)
-builder.Services.AddOptions<StorageOptions>()
-    .Bind(builder.Configuration.GetSection(StorageOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<DocumentOptions>()
-    .Bind(builder.Configuration.GetSection(DocumentOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// Security (ICurrentUserService + HttpContextAccessor)
+// Security
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-// Authentication (JWT Bearer — shared key from user-ms issuer)
-var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtIssuer = jwtSection["Issuer"] ?? "http://localhost:5100";
-var jwtAudience = jwtSection["Audience"] ?? "corems";
-var jwtSecretKey = jwtSection["SecretKey"] ?? "";
+// Authentication (JWT Bearer)
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "http://localhost:5104";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "corems";
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "";
 var signingKey = string.IsNullOrEmpty(jwtSecretKey)
     ? new SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
     : new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey));
@@ -119,7 +110,6 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
-        options.Events = JwtBearerEventsHandler.Create();
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -141,19 +131,22 @@ builder.Services.AddCoreMsAuthorization();
 builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration.GetConnectionString("corems") ?? "", name: "postgresql");
 
-builder.Services.AddHostedService<BucketInitializationService>();
-
 var app = builder.Build();
 
-// Auto-migrate in Development
+// Auto-migrate and seed in Development
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<DocumentMsDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<TemplateMsDbContext>();
     await db.Database.MigrateAsync();
+
+    var seeder = new SeedDataService(
+        db,
+        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>());
+    await seeder.SeedAsync();
 }
 
-// Middleware pipeline (order matters)
+// Middleware pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

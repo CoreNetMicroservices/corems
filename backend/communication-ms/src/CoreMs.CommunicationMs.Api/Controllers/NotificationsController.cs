@@ -1,3 +1,4 @@
+using CoreMs.Common.Security;
 using CoreMs.CommunicationMs.Core.Models;
 using CoreMs.CommunicationMs.Core.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +12,7 @@ namespace CoreMs.CommunicationMs.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/notifications")]
-[Authorize(Roles = "COMMUNICATION_MS_ADMIN,SUPER_ADMIN")]
+[Authorize(Roles = CoreMsRoles.CommunicationMsAdmin)]
 [Produces("application/json")]
 public class NotificationsController(
     EmailService emailService,

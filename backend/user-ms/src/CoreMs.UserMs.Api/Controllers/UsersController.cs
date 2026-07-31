@@ -1,4 +1,5 @@
 using CoreMs.Common.Repository;
+using CoreMs.Common.Security;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Core.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +12,7 @@ namespace CoreMs.UserMs.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = "USER_MS_ADMIN,SUPER_ADMIN")]
+[Authorize(Roles = CoreMsRoles.UserMsAdmin)]
 public class UsersController : ControllerBase
 {
     private readonly UserService _userService;

@@ -122,7 +122,7 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddCoreMsAuthorization();
 
 // Health checks
 builder.Services.AddHealthChecks()

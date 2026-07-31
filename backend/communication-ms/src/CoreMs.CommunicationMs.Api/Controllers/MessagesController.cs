@@ -27,7 +27,7 @@ public class MessagesController(
     public async Task<ActionResult<PagedResult<MessageResponse>>> GetMessages(
         [FromQuery] QueryParameters parameters, CancellationToken ct)
     {
-        Guid? scope = User.IsInRole("COMMUNICATION_MS_ADMIN") || User.IsInRole("SUPER_ADMIN")
+        Guid? scope = User.IsInRole(CoreMsRoles.CommunicationMsAdmin) || User.IsInRole(CoreMsRoles.SuperAdmin)
             ? null
             : currentUserService.GetCurrentUserUuid();
 
@@ -39,7 +39,7 @@ public class MessagesController(
     /// Send an email message to a user (admin only).
     /// </summary>
     [HttpPost("email")]
-    [Authorize(Roles = "COMMUNICATION_MS_ADMIN,SUPER_ADMIN")]
+    [Authorize(Roles = CoreMsRoles.CommunicationMsAdmin)]
     public async Task<ActionResult<MessageResponse>> SendEmail([FromBody] EmailMessageRequest request, CancellationToken ct)
     {
         var senderUuid = currentUserService.GetCurrentUserUuid();
@@ -51,7 +51,7 @@ public class MessagesController(
     /// Send an SMS message to a user (admin only).
     /// </summary>
     [HttpPost("sms")]
-    [Authorize(Roles = "COMMUNICATION_MS_ADMIN,SUPER_ADMIN")]
+    [Authorize(Roles = CoreMsRoles.CommunicationMsAdmin)]
     public async Task<ActionResult<MessageResponse>> SendSms([FromBody] SmsMessageRequest request, CancellationToken ct)
     {
         var senderUuid = currentUserService.GetCurrentUserUuid();

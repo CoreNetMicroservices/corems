@@ -5,6 +5,7 @@ using CoreMs.CommunicationMs.Core.Services;
 using CoreMs.CommunicationMs.Core.Services.Providers;
 using CoreMs.CommunicationMs.Infrastructure.Data;
 using CoreMs.ServiceDefaults;
+using CoreMs.TemplateMs.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.AddCoreMsDatabase<CommunicationMsDbContext>();
 builder.AddCoreMsModules(typeof(MessagingService).Assembly, typeof(Program).Assembly);
 
 builder.Services.AddHttpClient();
+builder.AddTemplateMsClient();
 
 builder.AddCoreMsOptionsLite<EmailProviderOptions>();
 builder.AddCoreMsOptionsLite<SmsProviderOptions>();

@@ -5,6 +5,7 @@ using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Exceptions;
 using CoreMs.CommunicationMs.Core.Models;
 using CoreMs.CommunicationMs.Core.Repositories;
+using CoreMs.TemplateMs.Client;
 using Microsoft.Extensions.Logging;
 
 namespace CoreMs.CommunicationMs.Core.Services;
@@ -14,18 +15,24 @@ public class SmsService
 {
     private readonly MessageRepository _messageRepository;
     private readonly MessageDispatcher _dispatcher;
+    private readonly TemplateMsClient _templateClient;
     private readonly ILogger<SmsService> _logger;
 
-    public SmsService(MessageRepository messageRepository, MessageDispatcher dispatcher, ILogger<SmsService> logger)
+    public SmsService(
+        MessageRepository messageRepository,
+        MessageDispatcher dispatcher,
+        TemplateMsClient templateClient,
+        ILogger<SmsService> logger)
     {
         _messageRepository = messageRepository;
         _dispatcher = dispatcher;
+        _templateClient = templateClient;
         _logger = logger;
     }
 
     public async Task<MessageResponse> SendMessageAsync(SmsMessageRequest request, Guid? senderUserId, CancellationToken ct = default)
     {
-        var message = ResolveMessage(request.Message, request.Template);
+        var message = await ResolveMessageAsync(request.Message, request.Template, ct);
 
         var entity = new SmsMessageEntity
         {
@@ -58,19 +65,28 @@ public class SmsService
 
     public async Task<NotificationResponse> SendNotificationAsync(SmsNotificationRequest request, CancellationToken ct = default)
     {
-        var message = ResolveMessage(request.Message, request.Template);
+        var message = await ResolveMessageAsync(request.Message, request.Template, ct);
         var payload = new SmsPayloadDto { PhoneNumber = request.PhoneNumber, Message = message };
         var status = await _dispatcher.DispatchAsync(MessageType.Sms, Guid.NewGuid(), payload, ct);
         return new NotificationResponse { Status = status.ToString(), SentAt = DateTime.UtcNow };
     }
 
-    private static string ResolveMessage(string? message, TemplateRequest? template)
+    private async Task<string> ResolveMessageAsync(string? message, TemplateRequest? template, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(message)) return message;
         if (template != null)
         {
-            // TODO: call template-ms rendering API
-            return $"[Template: {template.TemplateId}]";
+            var result = await _templateClient.RenderTemplateAsync(
+                template.TemplateId,
+                template.Params,
+                template.Language,
+                ct);
+
+            if (result == null)
+                throw ServiceException.Of(CommunicationErrors.InvalidRequest,
+                    $"Template rendering returned no result for '{template.TemplateId}'");
+
+            return result.RenderedContent;
         }
         throw ServiceException.Of(CommunicationErrors.InvalidRequest, "Either message or template must be provided");
     }

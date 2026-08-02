@@ -45,24 +45,23 @@ export const useMessagesState = () => {
   };
 
   const sendEmailMessage = async (data: {
-    userId?: string; // target user (if selected)
-    recipient: string; // direct email if not using userId or for explicit overrides
+    userId?: string;
+    recipient: string;
     subject: string;
-    body: string;
+    body?: string;
     emailType: "html" | "txt";
     cc?: string[];
     bcc?: string[];
     documentUuids?: string[];
-  }) => {
-    const requestData = {
-      ...data,
-      payloadType: "email" as const, // Required by API spec
+    template?: {
+      templateId: string;
+      params?: Record<string, object>;
     };
-    
+  }) => {
     const response = await communicationMsApi.apiRequest<Message>(
       HttpMethod.POST,
       `/api/messages/email`,
-      requestData
+      data
     );
     return response;
   };
@@ -70,17 +69,16 @@ export const useMessagesState = () => {
   const sendSmsMessage = async (data: {
     userId?: string;
     phoneNumber: string;
-    message: string;
-  }) => {
-    const requestData = {
-      ...data,
-      payloadType: "sms" as const, // Required by API spec
+    message?: string;
+    template?: {
+      templateId: string;
+      params?: Record<string, object>;
     };
-    
+  }) => {
     const response = await communicationMsApi.apiRequest<Message>(
       HttpMethod.POST,
       `/api/messages/sms`,
-      requestData
+      data
     );
     return response;
   };

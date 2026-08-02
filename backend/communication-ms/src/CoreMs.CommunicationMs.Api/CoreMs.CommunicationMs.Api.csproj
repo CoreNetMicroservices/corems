@@ -8,6 +8,7 @@
     <ProjectReference Include="..\CoreMs.CommunicationMs.Core\CoreMs.CommunicationMs.Core.csproj" />
     <ProjectReference Include="..\CoreMs.CommunicationMs.Infrastructure\CoreMs.CommunicationMs.Infrastructure.csproj" />
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
+    <ProjectReference Include="$(SolutionRoot)template-ms\src\CoreMs.TemplateMs.Client\CoreMs.TemplateMs.Client.csproj" />
   </ItemGroup>
 
 </Project>

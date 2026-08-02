@@ -43,6 +43,7 @@
   </Folder>
   <Folder Name="/template-ms/src/">
     <Project Path="template-ms/src/CoreMs.TemplateMs.Api/CoreMs.TemplateMs.Api.csproj" />
+    <Project Path="template-ms/src/CoreMs.TemplateMs.Client/CoreMs.TemplateMs.Client.csproj" />
     <Project Path="template-ms/src/CoreMs.TemplateMs.Core/CoreMs.TemplateMs.Core.csproj" />
     <Project Path="template-ms/src/CoreMs.TemplateMs.Infrastructure/CoreMs.TemplateMs.Infrastructure.csproj" />
   </Folder>

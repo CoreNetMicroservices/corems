@@ -6,6 +6,7 @@ using CoreMs.CommunicationMs.Core.Exceptions;
 using CoreMs.CommunicationMs.Core.Models;
 using CoreMs.CommunicationMs.Core.Repositories;
 using CoreMs.CommunicationMs.Core.Services.Providers;
+using CoreMs.TemplateMs.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,24 +17,27 @@ public class EmailService
 {
     private readonly MessageRepository _messageRepository;
     private readonly MessageDispatcher _dispatcher;
+    private readonly TemplateMsClient _templateClient;
     private readonly EmailProviderOptions _mailOptions;
     private readonly ILogger<EmailService> _logger;
 
     public EmailService(
         MessageRepository messageRepository,
         MessageDispatcher dispatcher,
+        TemplateMsClient templateClient,
         IOptions<EmailProviderOptions> mailOptions,
         ILogger<EmailService> logger)
     {
         _messageRepository = messageRepository;
         _dispatcher = dispatcher;
+        _templateClient = templateClient;
         _mailOptions = mailOptions.Value;
         _logger = logger;
     }
 
     public async Task<MessageResponse> SendMessageAsync(EmailMessageRequest request, Guid? senderUserId, CancellationToken ct = default)
     {
-        var body = ResolveBody(request.Body, request.Template);
+        var body = await ResolveBodyAsync(request.Body, request.Template, ct);
 
         var entity = new EmailMessageEntity
         {
@@ -62,7 +66,7 @@ public class EmailService
 
     public async Task<NotificationResponse> SendNotificationAsync(EmailNotificationRequest request, CancellationToken ct = default)
     {
-        var body = ResolveBody(request.Body, request.Template);
+        var body = await ResolveBodyAsync(request.Body, request.Template, ct);
         var payload = new EmailPayloadDto
         {
             EmailType = request.Template != null ? "html" : request.EmailType,
@@ -80,13 +84,22 @@ public class EmailService
         return new NotificationResponse { Status = status.ToString(), SentAt = DateTime.UtcNow };
     }
 
-    private static string ResolveBody(string? body, TemplateRequest? template)
+    private async Task<string> ResolveBodyAsync(string? body, TemplateRequest? template, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(body)) return body;
         if (template != null)
         {
-            // TODO: call template-ms rendering API
-            return $"[Template: {template.TemplateId}]";
+            var result = await _templateClient.RenderTemplateAsync(
+                template.TemplateId,
+                template.Params,
+                template.Language,
+                ct);
+
+            if (result == null)
+                throw ServiceException.Of(CommunicationErrors.InvalidRequest,
+                    $"Template rendering returned no result for '{template.TemplateId}'");
+
+            return result.RenderedContent;
         }
         throw ServiceException.Of(CommunicationErrors.InvalidRequest, "Either body or template must be provided");
     }

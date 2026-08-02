@@ -34,11 +34,19 @@ var minio = builder.AddContainer("minio", "minio/minio", "latest")
 
 // --- Services ---
 
+var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms")
+    .WithReference(corems)
+    .WaitFor(corems)
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
+
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
     .WithReference(corems)
     .WithReference(rabbitmq)
+    .WithReference(templateMs)
     .WaitFor(corems)
     .WaitFor(rabbitmq)
+    .WaitFor(templateMs)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Queue__Enabled", "true")
@@ -76,12 +84,6 @@ var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms
     .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
 
 var translationMs = builder.AddProject<Projects.CoreMs_TranslationMs_Api>("translation-ms")
-    .WithReference(corems)
-    .WaitFor(corems)
-    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
-    .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
-
-var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms")
     .WithReference(corems)
     .WaitFor(corems)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")

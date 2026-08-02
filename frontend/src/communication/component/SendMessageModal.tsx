@@ -9,6 +9,7 @@ import { useMessageState } from '@/common/utils/api/ApiResponseHandler';
 import { AlertMessage } from '@/common/component/ApiResponseAlert';
 import { DocumentSelector } from '@/document/component/DocumentSelector';
 import { DocumentUploadModal } from '@/document/component/DocumentUploadModal';
+import { TemplateSelector } from '@/template/component/TemplateSelector';
 import type { User } from '@/user/model/User';
 import type { Document as DocumentModel } from '@/document/model/Document';
 
@@ -40,6 +41,11 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
   const [phoneNumber, setPhoneNumber] = useState('');
   const [smsMessage, setSmsMessage] = useState('');
 
+  // Template state
+  const [useTemplate, setUseTemplate] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>(undefined);
+  const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
+
   // Document state
   const [selectedDocuments, setSelectedDocuments] = useState<DocumentModel[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -50,22 +56,34 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
 
   const effectiveUserId = userId || selectedUserId;
 
-
   const validate = (): string[] => {
     const errs: string[] = [];
-    console.log(selectedUserId);
-    console.log(userId);
     const currentUserId = userId || selectedUserId;
     if (!currentUserId) errs.push(t('validation.userRequired', 'User is required'));
     if (channel === 'email') {
       if (!recipientEmail.trim()) errs.push(t('validation.recipientEmailRequired', 'Recipient email is required'));
       if (!subject.trim()) errs.push(t('validation.subjectRequired', 'Subject is required'));
-      if (!body.trim()) errs.push(t('validation.bodyRequired', 'Body is required'));
+      if (!useTemplate && !body.trim()) errs.push(t('validation.bodyRequired', 'Body is required'));
+      if (useTemplate && !selectedTemplateId) errs.push(t('validation.templateRequired', 'Template is required'));
     } else {
       if (!phoneNumber.trim()) errs.push(t('validation.phoneRequired', 'Phone number is required'));
-      if (!smsMessage.trim()) errs.push(t('validation.messageRequired', 'Message is required'));
+      if (!useTemplate && !smsMessage.trim()) errs.push(t('validation.messageRequired', 'Message is required'));
+      if (useTemplate && !selectedTemplateId) errs.push(t('validation.templateRequired', 'Template is required'));
     }
     return errs;
+  };
+
+  const buildTemplatePayload = () => {
+    if (!useTemplate || !selectedTemplateId) return undefined;
+    // Convert string params to object (numbers stay as strings for the API)
+    const params: Record<string, object> = {};
+    for (const [key, value] of Object.entries(templateParams)) {
+      if (value) params[key] = value;
+    }
+    return {
+      templateId: selectedTemplateId,
+      params: Object.keys(params).length > 0 ? params : undefined,
+    };
   };
 
   const handleSubmit = async () => {
@@ -77,21 +95,26 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
     }
     setIsSubmitting(true);
     setSuccessMessage(null);
+
+    const template = buildTemplatePayload();
+
     const result = channel === 'email'
       ? await sendEmailMessage({
         userId: effectiveUserId,
         recipient: recipientEmail,
         subject,
-        body,
-        emailType,
+        body: useTemplate ? undefined : body,
+        emailType: useTemplate ? 'html' : emailType,
         cc: cc ? cc.split(',').map(s => s.trim()).filter(Boolean) : undefined,
         bcc: bcc ? bcc.split(',').map(s => s.trim()).filter(Boolean) : undefined,
         documentUuids: selectedDocuments.length > 0 ? selectedDocuments.map(d => d.uuid) : undefined,
+        template,
       })
       : await sendSmsMessage({
         userId: effectiveUserId,
         phoneNumber,
-        message: smsMessage,
+        message: useTemplate ? undefined : smsMessage,
+        template,
       });
     setIsSubmitting(false);
     if (result.result) {
@@ -109,6 +132,9 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
       setBcc('');
       setSmsMessage('');
       setSelectedDocuments([]);
+      setUseTemplate(false);
+      setSelectedTemplateId(undefined);
+      setTemplateParams({});
       setShowValidation(false);
     }
   };
@@ -145,12 +171,20 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
     setSelectedDocuments([]);
   }, [effectiveUserId]);
 
+  // Reset template state when switching channels
+  useEffect(() => {
+    setSelectedTemplateId(undefined);
+    setTemplateParams({});
+  }, [channel]);
+
   const handleCancel = () => {
     setShowValidation(false);
     setSuccessMessage(null);
     if (!userId) setSelectedUserId(undefined);
     onClose();
   };
+
+  const templateCategory = channel === 'email' ? 'EMAIL' : 'SMS';
 
   return (
     <ModalDialog
@@ -187,11 +221,7 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
                 return res;
               }}
               getOptionLabel={(u) => `${u.firstName} ${u.lastName}`}
-              getOptionValue={(u) => {
-                console.log(u);
-                return u.userId;
-
-              }}
+              getOptionValue={(u) => u.userId}
               getOptionSubtitle={(u) => u.email}
               placeholder={t('message.selectUser', 'Select a user')}
             />
@@ -223,7 +253,11 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
               </Col>
               <Col md={4} className="mb-3">
                 <Form.Label>{t('message.format', 'Format')}</Form.Label>
-                <Form.Select value={emailType} onChange={e => setEmailType(e.target.value as 'html' | 'txt')}>
+                <Form.Select
+                  value={useTemplate ? 'html' : emailType}
+                  onChange={e => setEmailType(e.target.value as 'html' | 'txt')}
+                  disabled={useTemplate}
+                >
                   <option value="txt">{t('message.plainText', 'Plain Text')}</option>
                   <option value="html">HTML</option>
                 </Form.Select>
@@ -240,13 +274,48 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
                 <Form.Control value={bcc} onChange={e => setBcc(e.target.value)} placeholder={t('message.commaSeparated', 'Comma separated')} />
               </Col>
             </Row>
-            {/* Body full row */}
+
+            {/* Template toggle */}
             <Row>
               <Col md={12} className="mb-3">
-                <Form.Label>{t('message.body', 'Body')} *</Form.Label>
-                <Form.Control as="textarea" rows={6} value={body} onChange={e => setBody(e.target.value)} />
+                <Form.Check
+                  type="switch"
+                  id="use-template-switch"
+                  label={t('template.useTemplate', 'Use Template')}
+                  checked={useTemplate}
+                  onChange={e => {
+                    setUseTemplate(e.target.checked);
+                    if (!e.target.checked) {
+                      setSelectedTemplateId(undefined);
+                      setTemplateParams({});
+                    }
+                  }}
+                />
               </Col>
             </Row>
+
+            {/* Body or Template */}
+            {useTemplate ? (
+              <Row>
+                <Col md={12} className="mb-3">
+                  <TemplateSelector
+                    category={templateCategory}
+                    selectedTemplateId={selectedTemplateId}
+                    templateParams={templateParams}
+                    onTemplateChange={setSelectedTemplateId}
+                    onParamsChange={setTemplateParams}
+                  />
+                </Col>
+              </Row>
+            ) : (
+              <Row>
+                <Col md={12} className="mb-3">
+                  <Form.Label>{t('message.body', 'Body')} *</Form.Label>
+                  <Form.Control as="textarea" rows={6} value={body} onChange={e => setBody(e.target.value)} />
+                </Col>
+              </Row>
+            )}
+
             {/* Document attachments */}
             <Row>
               <Col md={12} className="mb-3">
@@ -277,15 +346,50 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
                 <Form.Control value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+123456789" />
               </Col>
             </Row>
-            {/* Message full row */}
+
+            {/* Template toggle */}
             <Row>
               <Col md={12} className="mb-3">
-                <Form.Label>{t('message.messageText', 'Message')} *</Form.Label>
-                <Form.Control as="textarea" rows={4} value={smsMessage} onChange={e => setSmsMessage(e.target.value)} />
+                <Form.Check
+                  type="switch"
+                  id="use-template-switch-sms"
+                  label={t('template.useTemplate', 'Use Template')}
+                  checked={useTemplate}
+                  onChange={e => {
+                    setUseTemplate(e.target.checked);
+                    if (!e.target.checked) {
+                      setSelectedTemplateId(undefined);
+                      setTemplateParams({});
+                    }
+                  }}
+                />
               </Col>
             </Row>
+
+            {/* Message or Template */}
+            {useTemplate ? (
+              <Row>
+                <Col md={12} className="mb-3">
+                  <TemplateSelector
+                    category={templateCategory}
+                    selectedTemplateId={selectedTemplateId}
+                    templateParams={templateParams}
+                    onTemplateChange={setSelectedTemplateId}
+                    onParamsChange={setTemplateParams}
+                  />
+                </Col>
+              </Row>
+            ) : (
+              <Row>
+                <Col md={12} className="mb-3">
+                  <Form.Label>{t('message.messageText', 'Message')} *</Form.Label>
+                  <Form.Control as="textarea" rows={4} value={smsMessage} onChange={e => setSmsMessage(e.target.value)} />
+                </Col>
+              </Row>
+            )}
           </>
         )}
+
         {/* Validation + API errors displayed at bottom after content */}
         {validationErrors.length > 0 && (
           <Alert variant="danger" className="mt-2">

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Badge, OverlayTrigger, Popover } from "react-bootstrap";
+import { Badge, Container } from "react-bootstrap";
 import { Envelope, ChatDots, CheckCircle, XCircle, Clock, Eye, Send } from "react-bootstrap-icons";
 import { useHookstate } from "@hookstate/core";
 import { useTranslation } from "react-i18next";
@@ -12,12 +12,12 @@ import { searchUsers } from "@/user/utils/UserApi";
 import { User } from "@/user/model/User";
 import { parseCurrentSort, getInitialDataTableQueryParams, createDataTableActions } from "@/common/component/dataTable/DataTableState";
 import { formatDate } from "@/common/utils/DateUtils";
-import { getRecipient, getContentPreview, getFullContent } from "@/communication/utils/MessageUtils";
+import { getRecipient, getContentPreview } from "@/communication/utils/MessageUtils";
 import { PageResponse } from "@/common/model/CoreMsApiModel";
 import { resolveUserNames } from "@/user/utils/UserApi";
 import { Link } from "react-router-dom";
 import SendMessageModal from "@/communication/component/SendMessageModal";
-import { Container } from "react-bootstrap";
+import MessageDetailModal from "@/communication/component/MessageDetailModal";
 import { APP_ROUTES } from "@/app/router/routes";
 import { hasAnyRole } from "@/user/store/AuthState";
 import { AppRoles } from "@/common/AppRoles";
@@ -30,13 +30,13 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [pagedResponse, setPagedResponse] = React.useState<PageResponse<Message> | undefined>(undefined);
   const [userNames, setUserNames] = React.useState<Record<string, string>>({});
-  const [isResolvingNames, setIsResolvingNames] = React.useState(false); // loading state for user name resolution
+  const [isResolvingNames, setIsResolvingNames] = React.useState(false);
   const [showSendModal, setShowSendModal] = React.useState(false);
+  const [selectedMessage, setSelectedMessage] = React.useState<Message | null>(null);
+  const [showDetailModal, setShowDetailModal] = React.useState(false);
   const isAdmin = hasAnyRole([AppRoles.CommunicationMsAdmin]);
 
-  // Local state for query params
   const queryParams = useHookstate(getInitialDataTableQueryParams());
-  // actions will be created after refreshMessages so we can provide an onUpdate hook
 
   const refreshMessages = async () => {
     setIsLoading(true);
@@ -47,7 +47,7 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
     }
     setIsLoading(false);
   };
-  // stable callback for actions to call when query params change
+
   const refreshMessagesCb = React.useCallback(refreshMessages, [fetchMessages, JSON.stringify(queryParams.get())]);
 
   const {
@@ -58,16 +58,16 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
     setSort
   } = createDataTableActions(queryParams, { onUpdate: refreshMessagesCb });
 
-  // If a userId prop is provided, apply it as a filter so the message list is scoped to that user
   useEffect(() => {
     if (userId) {
       setFilter('userId', userId);
     }
   }, [userId]);
-  useEffect(() => {
-    if (messages.length === 0) return;
-  }, [messages]);
 
+  const handleViewMessage = (msg: Message) => {
+    setSelectedMessage(msg);
+    setShowDetailModal(true);
+  };
 
   const filters: DataTableFilter<User>[] = [];
 
@@ -120,24 +120,7 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
   };
 
   const renderRow = (msg: Message) => {
-    const content = getFullContent(msg);
     const preview = getContentPreview(msg);
-    const isHtml = msg.type === 'email' && (msg.payload as EmailPayload).emailType === 'html';
-
-    const popover = (
-      <Popover id={`popover-${msg.uuid}`} style={{ maxWidth: '500px' }}>
-        <Popover.Header as="h3">
-          {msg.type === 'email' ? t('message.emailContent', 'Email Content') : t('message.smsContent', 'SMS Content')}
-        </Popover.Header>
-        <Popover.Body style={{ maxHeight: '600px', overflowY: 'auto' }}>
-          {isHtml ? (
-            <div dangerouslySetInnerHTML={{ __html: content }} />
-          ) : (
-            <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>
-          )}
-        </Popover.Body>
-      </Popover>
-    );
 
     return (
       <tr key={msg.uuid}>
@@ -158,11 +141,9 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
               : getRecipient(msg))}
         </td>
         <td className="align-middle">
-          <div className="d-flex align-items-center" style={{ cursor: 'help' }}>
-            <div className="text-truncate" style={{ maxWidth: '300px' }}>
-              {msg.type === 'email' && <span className="fw-bold me-1">{t('message.subject', 'Subject')}:</span>}
-              {preview}
-            </div>
+          <div className="text-truncate" style={{ maxWidth: '300px' }}>
+            {msg.type === 'email' && <span className="fw-bold me-1">{t('message.subject', 'Subject')}:</span>}
+            {preview}
           </div>
         </td>
         <td className="align-middle">
@@ -174,15 +155,13 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
             : t('message.system', 'System')}
         </td>
         <td className="align-middle text-end">
-          <OverlayTrigger
-            trigger={['hover', 'focus']}
-            placement="auto"
-            delay={{ show: 300, hide: 100 }}
-            overlay={popover}
+          <button
+            className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+            onClick={() => handleViewMessage(msg)}
+            title={t('message.viewMessage', 'View Message')}
           >
-            <Eye size={18} />
-          </OverlayTrigger>
-
+            <Eye size={16} />
+          </button>
         </td>
       </tr>
     );
@@ -196,13 +175,11 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
     : null
   );
 
-  // Fetch messages on mount
   useEffect(() => {
     refreshMessages();
   }, []);
 
   return (
-
     <Container>
       <AlertMessage initialErrorMessage={initialErrorMessage} errors={errors} />
 
@@ -230,13 +207,30 @@ export const MessageList: React.FC<{ userId?: string }> = ({ userId }) => {
         onSort={(field, direction) => setSort(field, direction)}
         renderRow={renderRow}
       />
-      <SendMessageModal show={showSendModal} userId={userId} onClose={() => setShowSendModal(false)} onSent={() => { setShowSendModal(false); refreshMessages(); }} />
+
+      <SendMessageModal
+        show={showSendModal}
+        userId={userId}
+        onClose={() => setShowSendModal(false)}
+        onSent={() => { setShowSendModal(false); refreshMessages(); }}
+      />
+
+      <MessageDetailModal
+        show={showDetailModal}
+        message={selectedMessage}
+        onClose={() => { setShowDetailModal(false); setSelectedMessage(null); }}
+        userNames={userNames}
+      />
     </Container>
   );
 };
 
 // Side-effect component for resolving user names with loading state
-const NameResolutionEffect: React.FC<{ messages: Message[]; setUserNames: React.Dispatch<React.SetStateAction<Record<string, string>>>; setIsResolving: React.Dispatch<React.SetStateAction<boolean>> }> = ({ messages, setUserNames, setIsResolving }) => {
+const NameResolutionEffect: React.FC<{
+  messages: Message[];
+  setUserNames: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setIsResolving: React.Dispatch<React.SetStateAction<boolean>>;
+}> = ({ messages, setUserNames, setIsResolving }) => {
   useEffect(() => {
     const idsSet = new Set<string>();
     messages.forEach(m => {

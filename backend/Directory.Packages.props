@@ -99,8 +99,6 @@
 
   <ItemGroup Label="CoreMs Shared Libraries">
     <PackageVersion Include="CoreMs.Common" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.Common.Contracts" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.Common.Security" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Logging">

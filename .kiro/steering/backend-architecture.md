@@ -25,9 +25,8 @@ corems-parent/
 │   │   └── CoreMs.ServiceDefaults/
 │   ├── common/                    # Shared libraries
 │   │   ├── src/
-│   │   │   ├── CoreMs.Common/     # Exceptions/, Repository/, Data/, Middleware/, Extensions/
-│   │   │   ├── CoreMs.Common.Contracts/
-│   │   │   └── CoreMs.Common.Security/
+│   │   │   ├── CoreMs.Common/     # App/, Exceptions/, Repository/, Data/, Middleware/, Extensions/, Http/, Messaging/, Security/
+│   │   │   └── CoreMs.Common.Testing/  # Integration test infrastructure
 │   │   └── test/
 │   │       └── CoreMs.Common.Tests/
 │   ├── user-ms/                   # User management service
@@ -72,7 +71,7 @@ CoreMs.Common.Testing/
 └── CoreMsTestAuthHandler                     # Bearer token: "userId|role1,role2"
 ```
 
-There is no `CoreMs.Common.Api` project — contracts live in `CoreMs.Common.Contracts`.
+There is no separate `Contracts` or `Security` project — everything lives in `CoreMs.Common`.
 
 ## Shared Infrastructure Approach
 
@@ -159,7 +158,7 @@ No interfaces needed. If a class implements `IClassName`, it registers as the in
 
 ## PR Checklist
 - ✅ Avoided editing `Common` projects without discussion
-- ✅ Core layer only depends on CoreMs.Common, CoreMs.Common.Contracts, and EF Core
+- ✅ Core layer only depends on CoreMs.Common and EF Core
 - ✅ Infrastructure layer only has DbContext, Configurations, and Migrations
 - ✅ No package version overrides in individual .csproj files
 - ✅ Migration changes sync with entity changes

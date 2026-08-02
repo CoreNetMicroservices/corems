@@ -45,19 +45,12 @@ fileMatchPattern: "**/{Program.cs,appsettings.json,*.csproj}"
   <ItemGroup>
     <ProjectReference Include="..\CoreMs.<Service>Ms.Core\CoreMs.<Service>Ms.Core.csproj" />
     <ProjectReference Include="..\CoreMs.<Service>Ms.Infrastructure\CoreMs.<Service>Ms.Infrastructure.csproj" />
-    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FluentValidation" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 </Project>
 ```
 
-Note: `TargetFramework`, `Nullable`, `ImplicitUsings` are inherited from `Directory.Build.props` (net10.0).
+Note: `TargetFramework`, `Nullable`, `ImplicitUsings` are inherited from `Directory.Build.props` (net10.0). All packages come transitively from `CoreMs.Common`.
 
 ### Core .csproj (business logic + repositories)
 ```xml
@@ -67,11 +60,6 @@ Note: `TargetFramework`, `Nullable`, `ImplicitUsings` are inherited from `Direct
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
-    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Contracts\CoreMs.Common.Contracts.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 </Project>
 ```
@@ -86,9 +74,7 @@ Note: `TargetFramework`, `Nullable`, `ImplicitUsings` are inherited from `Direct
     <ProjectReference Include="..\CoreMs.<Service>Ms.Core\CoreMs.<Service>Ms.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 </Project>
 ```

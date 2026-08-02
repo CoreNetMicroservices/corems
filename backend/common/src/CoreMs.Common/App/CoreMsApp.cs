@@ -12,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
 
 namespace CoreMs.Common.App;
 
@@ -84,6 +86,16 @@ public static class CoreMsApp
     {
         var options = new CoreMsAppOptions();
         configure?.Invoke(options);
+
+        // Serilog: structured logging with correlation ID enrichment
+        builder.Services.AddSerilog(cfg => cfg
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("ServiceName", options.Swagger?.Title ?? "CoreMS")
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .WriteTo.Console(outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId:l} {Message:lj}{NewLine}{Exception}"));
 
         builder.Services.AddCors(o =>
         {
@@ -291,6 +303,8 @@ public static class CoreMsApp
     /// </summary>
     public static WebApplication UseCoreMsApp(this WebApplication app)
     {
+        app.UseMiddleware<CorrelationIdMiddleware>();
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();

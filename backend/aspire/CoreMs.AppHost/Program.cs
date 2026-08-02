@@ -6,10 +6,13 @@ var userMs_ = builder.Configuration.GetSection("UserMs");
 var communicationMs_ = builder.Configuration.GetSection("CommunicationMs");
 var documentMs_ = builder.Configuration.GetSection("DocumentMs");
 
+// --- Infrastructure ---
+
 var postgres = builder.AddPostgres("postgres", password: postgresPassword, port: 5432)
     .WithDataVolume("corems-postgres-data")
-    .WithPgAdmin()
-    .AddDatabase("corems");
+    .WithPgAdmin();
+
+var corems = postgres.AddDatabase("corems");
 
 var rabbitmqPassword = builder.AddParameter("rabbitmq-password", secret: true);
 
@@ -29,10 +32,12 @@ var minio = builder.AddContainer("minio", "minio/minio", "latest")
     .WithVolume("corems-minio-data", "/data")
     .WithHttpHealthCheck(endpointName: "api", path: "/minio/health/live");
 
+// --- Services ---
+
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
-    .WithReference(postgres)
+    .WithReference(corems)
     .WithReference(rabbitmq)
-    .WaitFor(postgres)
+    .WaitFor(corems)
     .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
@@ -46,8 +51,8 @@ var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("c
     .WithEnvironment("Mail__UseSsl", communicationMs_["MailUseSsl"] ?? "false");
 
 var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
-    .WithReference(postgres)
-    .WaitFor(postgres)
+    .WithReference(corems)
+    .WaitFor(corems)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__PrivateKeyBase64", userMs_["JwtPrivateKeyBase64"] ?? "")
     .WithEnvironment("Jwt__PublicKeyBase64", userMs_["JwtPublicKeyBase64"] ?? "")
@@ -60,8 +65,8 @@ var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", userMs_["LinkedInClientSecret"] ?? "");
 
 var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
-    .WithReference(postgres)
-    .WaitFor(postgres)
+    .WithReference(corems)
+    .WaitFor(corems)
     .WaitFor(minio)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
@@ -71,16 +76,18 @@ var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms
     .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
 
 var translationMs = builder.AddProject<Projects.CoreMs_TranslationMs_Api>("translation-ms")
-    .WithReference(postgres)
-    .WaitFor(postgres)
+    .WithReference(corems)
+    .WaitFor(corems)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
 
 var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms")
-    .WithReference(postgres)
-    .WaitFor(postgres)
+    .WithReference(corems)
+    .WaitFor(corems)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
+
+// --- Frontend ---
 
 builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")

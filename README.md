@@ -1,142 +1,137 @@
-# CoreMS
+# CoreMS (.NET)
 
-Enterprise microservices foundation for rapid application development.
+Enterprise microservices toolkit for rapid application development.
 
-Built with C# / ASP.NET Core 10.
-
+Built with C# / ASP.NET Core 10, .NET Aspire orchestration, and a custom lightweight framework (`CoreMs.Common`).
 
 ## Services
 
-| Service | Port | Description | Status |
-|---------|------|-------------|--------|
-| **User MS** | 5100 | Authentication, OAuth2/OIDC, user management, RBAC | ✅ Ready |
-| **Communication MS** | 5101 | Email, SMS, push notifications | 🔜 Planned |
-| **Document MS** | 5102 | File storage, document management | 🔜 Planned |
-| **Translation MS** | 5103 | Internationalization, translation bundles | 🔜 Planned |
-| **Template MS** | 5104 | Template management and rendering | 🔜 Planned |
-
-## Shared Foundation
-
-All services build on top of `CoreMs.Common` — a shared library providing:
-
-- **Exception Handling** — Structured error responses with `ServiceException` pattern
-- **Repositories** — Generic `SearchableRepository<T>` with dynamic search, filter, sort, pagination
-- **Data** — Base `CoreMsDbContext`, auto-save middleware (implicit unit of work)
-- **Security** — JWT validation, role-based access, `ICurrentUserService`
-- **Validation** — `AddCoreMsValidation()` with auto-discovered FluentValidation validators
-- **Messaging** — Shared contracts for inter-service communication via RabbitMQ
+| Service | Port | Description |
+|---------|------|-------------|
+| **User MS** | 5100 | OAuth2/OIDC, social auth (Google/GitHub/LinkedIn), user management, RBAC |
+| **Communication MS** | 5101 | Email (SMTP/MailKit), SMS (Twilio), Slack notifications, RabbitMQ queue |
+| **Document MS** | 5102 | File storage (S3/MinIO), visibility-based access, pre-signed links |
+| **Translation MS** | 5103 | Internationalization, translation bundles per realm/language |
+| **Template MS** | 5104 | Handlebars template management, rendering, and caching |
+| **Frontend** | 8080 | React + TypeScript + Vite (all modules integrated) |
 
 ## Quick Start
 
 ```bash
-# Prerequisites: .NET 10 SDK, Docker, Aspire CLI
-dotnet tool install -g aspire.cli
-
-# Run everything (PostgreSQL + User MS) via Aspire
+# Prerequisites: .NET 10 SDK, Docker
 cd backend
-aspire run --project aspire/CoreMs.AppHost
+dotnet run --project aspire/CoreMs.AppHost
 ```
+
+This starts everything: PostgreSQL, RabbitMQ, MinIO, all 5 backend services, and the frontend.
 
 Aspire Dashboard: https://localhost:17178
-User MS Swagger: http://localhost:5100/swagger
-
-### Without Aspire
-
-```bash
-# Start infrastructure manually
-docker compose -f docker/docker-compose.infra.yml up -d
-
-# Run User MS
-cd backend
-dotnet run --project user-ms/src/CoreMs.UserMs.Api
-```
 
 ### Seed Test Data
 
 ```bash
-cd backend
 dotnet run --project user-ms/src/CoreMs.UserMs.Api -- --seed
 ```
 
-**Test credentials:** All seed users have password `Password123!`
+Test credentials (password: `Password123!`):
 - `admin@corems.local` — all admin roles
 - `alice.johnson@corems.local` — regular user
+
+## Framework API
+
+Every service's `Program.cs` uses the CoreMS framework:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddCoreMsHost();        // Aspire: OTel, health, service discovery
+builder.AddCoreMsApp(o => o     // App: CORS, Swagger, JWT, Serilog, exceptions
+    .WithSwagger("My Service", "Description"));
+builder.AddCoreMsDatabase<MyDbContext>();   // Aspire Npgsql + DI aliases
+builder.AddCoreMsModules(                  // [Service] + [Repository] + validators
+    typeof(MyService).Assembly,
+    typeof(Program).Assembly);
+
+var app = builder.Build();
+
+if (await app.RunCoreMsDatabaseAsync<MyDbContext>(seed: ...)) return;
+
+app.UseCoreMsApp();             // Middleware pipeline
+app.MapCoreMsEndpoints();       // Health endpoints
+
+app.Run();
+```
+
+### Available Framework Methods
+
+| Method | Purpose |
+|--------|---------|
+| `AddCoreMsHost()` | OpenTelemetry, health checks, service discovery |
+| `AddCoreMsApp(o => ...)` | CORS, controllers, Swagger, JWT, Serilog, exceptions |
+| `AddCoreMsDatabase<T>()` | Aspire Npgsql + CoreMsDbContext/DbContext aliases |
+| `AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository] + FluentValidation |
+| `AddCoreMsOptions<T>()` | Bind + validate options (DataAnnotations) |
+| `AddCoreMsClient<T>(name)` | Service-to-service HTTP client with JWT + correlation ID forwarding |
+| `AddCoreMsMessaging(config)` | MassTransit/RabbitMQ with correlation ID propagation |
+| `RunCoreMsDatabaseAsync<T>()` | Auto-migrate + seed in dev, --migrate/--seed CLI |
+| `UseCoreMsApp()` | Full middleware pipeline (correlation ID, Swagger, auth, auto-save) |
+| `MapCoreMsEndpoints()` | /health and /alive endpoints |
 
 ## Architecture
 
 ```
 corems-parent/
-├── backend/                          # .NET Backend
-│   ├── aspire/                       # .NET Aspire orchestration
-│   ├── common/                       # Shared libraries
-│   │   ├── src/
-│   │   │   ├── CoreMs.Common/        # Exceptions, Repository, Data, Middleware, Extensions
-│   │   │   ├── CoreMs.Common.Contracts/  # Messaging DTOs
-│   │   │   └── CoreMs.Common.Security/   # JWT, RBAC
-│   │   └── test/
-│   │       └── CoreMs.Common.Tests/
-│   ├── user-ms/                      # User management service
-│   │   ├── src/
-│   │   │   ├── CoreMs.UserMs.Api/
-│   │   │   ├── CoreMs.UserMs.Core/
-│   │   │   └── CoreMs.UserMs.Infrastructure/
-│   │   └── test/
-│   │       ├── CoreMs.UserMs.Tests/
-│   │       └── CoreMs.UserMs.IntegrationTests/
-│   ├── local-packages/
+├── backend/
+│   ├── aspire/
+│   │   ├── CoreMs.AppHost/           # Aspire orchestrator
+│   │   └── CoreMs.ServiceDefaults/   # CoreMsHost (OTel, health, discovery)
+│   ├── common/
+│   │   └── src/
+│   │       ├── CoreMs.Common/        # Framework library (App/, Security/, Repository/, etc.)
+│   │       └── CoreMs.Common.Testing/# CoreMsTestFactory for integration tests
+│   ├── user-ms/                      # src/ (Api, Core, Infrastructure) + test/
+│   ├── communication-ms/             # src/ (Api, Client, Core, Infrastructure)
+│   ├── document-ms/                  # src/ (Api, Core, Infrastructure) + test/
+│   ├── translation-ms/              # src/ (Api, Core, Infrastructure) + test/
+│   ├── template-ms/                 # src/ (Api, Core, Infrastructure) + test/
 │   ├── CoreMs.slnx
-│   ├── Directory.Build.props
-│   └── Directory.Packages.props
-├── docker/                           # Infrastructure (PostgreSQL, RabbitMQ)
-└── README.md
+│   ├── Directory.Build.props        # net10.0, nullable, implicit usings
+│   └── Directory.Packages.props     # Central package management
+└── frontend/                         # React + TypeScript + Vite
 ```
 
-Each service follows a three-layer structure:
-```
-<service>-ms/
-├── src/
-│   ├── CoreMs.<Service>Ms.Api/              # Host, controllers, validators
-│   ├── CoreMs.<Service>Ms.Core/             # Entities, services, repositories
-│   └── CoreMs.<Service>Ms.Infrastructure/   # EF Core config, migrations
-└── test/
-    ├── CoreMs.<Service>Ms.Tests/
-    └── CoreMs.<Service>Ms.IntegrationTests/
-```
+Each service follows three layers:
+- **Api** — Controllers, validators, Program.cs (zero direct package refs)
+- **Core** — Entities, services ([Service]), repositories ([Repository]), models
+- **Infrastructure** — EF Core configurations + migrations only
 
 ## Tech Stack
 
-- .NET 10 / ASP.NET Core 10
+- .NET 10 / C# 13 / ASP.NET Core 10
 - Entity Framework Core 10 + PostgreSQL
-- .NET Aspire for local orchestration
-- FluentValidation (auto-discovered via `AddCoreMsValidation`)
-- BCrypt.Net for password hashing
-- MassTransit + RabbitMQ for messaging
-- xUnit + FsCheck + FluentAssertions + NSubstitute
-
-## Adding a New Service
-
-1. Create `backend/<service>-ms/src/` with Api, Core, Infrastructure projects
-2. Create `backend/<service>-ms/test/` with Tests and IntegrationTests projects
-3. Extend `CoreMsDbContext` with your schema name
-4. Extend `SearchableRepository<T>` for your entities with `[Repository]` attribute
-5. Add services with `[Service]` attribute
-6. Add to `CoreMs.slnx` and run `dotnet build`
+- .NET Aspire 13.4 for orchestration
+- Serilog (structured logging with correlation IDs)
+- FluentValidation (auto-discovered)
+- MassTransit + RabbitMQ (async messaging)
+- MinIO (S3-compatible file storage)
+- BCrypt.Net (password hashing)
+- Handlebars.NET (template rendering)
+- xUnit + FsCheck + FluentAssertions + NSubstitute (testing)
+- React 18 + TypeScript + Vite + React Bootstrap + Hookstate (frontend)
 
 ## CLI
 
-All commands run from the `backend/` directory:
+All commands from `backend/`:
 
 ```bash
-aspire run --project aspire/CoreMs.AppHost                      # Run all (Aspire)
-dotnet run --project user-ms/src/CoreMs.UserMs.Api              # Run standalone
-dotnet run --project user-ms/src/CoreMs.UserMs.Api -- --migrate # Migrate DB
-dotnet run --project user-ms/src/CoreMs.UserMs.Api -- --seed    # Seed data
-dotnet test                                                      # All tests
-dotnet build                                                     # Build
+dotnet run --project aspire/CoreMs.AppHost            # Run everything
+dotnet run --project user-ms/src/CoreMs.UserMs.Api    # Run single service
+dotnet run --project <service> -- --migrate           # Apply migrations
+dotnet run --project <service> -- --seed              # Seed data
+dotnet test                                           # All tests
+dotnet build                                          # Build solution
 ```
-
-> **Git Bash on Windows:** `aspire` is a `.cmd` shim. Use `cmd //c "aspire run ..."` or add `alias aspire='cmd //c aspire'` to `~/.bashrc`.
 
 ## Related
 
-Also available as a [Java/Spring Boot edition](https://github.com/CoreWebMicroservices/corems-project) with the same API contracts.
+Also available as a [Java/Spring Boot edition](https://github.com/CoreWebMicroservices/corems-project).

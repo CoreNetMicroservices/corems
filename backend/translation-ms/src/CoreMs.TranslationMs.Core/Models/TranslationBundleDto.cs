@@ -4,7 +4,7 @@ public record TranslationBundleDto(
     long Id,
     string Realm,
     string Lang,
-    Dictionary<string, string> Translations,
+    Dictionary<string, string> Data,
     DateTime UpdatedAt,
     Guid? UpdatedBy
 );

@@ -73,7 +73,7 @@ public class TranslationService(
         {
             Realm = realm,
             Lang = lang,
-            Data = request.Translations,
+            Data = request.Data,
             UpdatedAt = DateTime.UtcNow,
             UpdatedBy = currentUserService.GetCurrentUserUuid()
         };
@@ -88,7 +88,7 @@ public class TranslationService(
         var entity = await repository.GetByRealmAndLangAsync(realm, lang, ct)
             ?? throw ServiceException.Of(TranslationServiceErrors.TranslationNotFound);
 
-        entity.Data = request.Translations;
+        entity.Data = request.Data;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = currentUserService.GetCurrentUserUuid();
 
@@ -109,7 +109,7 @@ public class TranslationService(
         entity.Id,
         entity.Realm,
         entity.Lang,
-        Translations: entity.Data,
+        Data: entity.Data,
         entity.UpdatedAt,
         entity.UpdatedBy
     );

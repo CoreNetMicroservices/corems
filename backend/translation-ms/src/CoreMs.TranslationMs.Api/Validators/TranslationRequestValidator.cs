@@ -10,9 +10,9 @@ public class TranslationRequestValidator : AbstractValidator<TranslationRequest>
 
     public TranslationRequestValidator()
     {
-        RuleFor(x => x.Translations)
-            .NotNull().WithMessage("Translations field is required")
-            .Must(d => d != null && d.Count > 0).WithMessage("Translations must contain at least one entry")
+        RuleFor(x => x.Data)
+            .NotNull().WithMessage("Data field is required")
+            .Must(d => d != null && d.Count > 0).WithMessage("Data must contain at least one entry")
             .Must(d => d == null || d.Keys.All(k => !string.IsNullOrWhiteSpace(k)))
                 .WithMessage("Translation keys must not be empty or whitespace")
             .Must(d => d == null || d.Keys.All(k => k.Length <= MaxKeyLength))

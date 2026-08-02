@@ -1,9 +1,7 @@
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using CoreMs.Common.Data;
-using CoreMs.Common.Extensions;
-using CoreMs.Common.Middleware;
+using CoreMs.Common.App;
 using CoreMs.Common.Security;
 using CoreMs.CommunicationMs.Client;
 using CoreMs.ServiceDefaults;
@@ -13,95 +11,28 @@ using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Aspire service defaults (OpenTelemetry, health checks, service discovery)
-builder.AddServiceDefaults();
+builder.AddCoreMsHost();
+builder.AddCoreMsApp(o => o
+    .WithSwagger("User Management Service", "OAuth2/OIDC Authorization Server with user management")
+    .WithoutJwtAuth());
+builder.AddCoreMsDatabase<UserMsDbContext>();
+builder.AddCoreMsModules(typeof(UserService).Assembly, typeof(Program).Assembly);
 
-// CORS (allow frontend origin)
-builder.Services.AddCors(options =>
+builder.Services.AddSwaggerGen(o =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins(
-                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:8080"])
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
+    if (File.Exists(xmlPath)) o.IncludeXmlComments(xmlPath);
 });
 
-// Controllers + JSON options
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
+builder.Services.AddCommunicationMsClient(
+    builder.Configuration["CommunicationMs:BaseUrl"] ?? "http://localhost:5101");
 
-// Swagger / OpenAPI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "User Management Service",
-        Version = "v1",
-        Description = "OAuth2/OIDC Authorization Server with user management"
-    });
-
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        Description = "Enter your JWT token"
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
-    });
-
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
-});
-
-// Database (Aspire-managed: connection name "corems" matches AppHost database name)
-builder.AddNpgsqlDbContext<UserMsDbContext>("corems");
-builder.Services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<UserMsDbContext>());
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<UserMsDbContext>());
-
-// Auto-register services and repositories by convention ([Service] / [Repository])
-builder.Services.AddCoreMsServices(typeof(UserService).Assembly);
-
-// Communication service client (for sending notifications)
-var communicationMsUrl = builder.Configuration["CommunicationMs:BaseUrl"] ?? "http://localhost:5101";
-builder.Services.AddCommunicationMsClient(communicationMsUrl);
-
-// HTTP clients for social auth providers
 builder.Services.AddHttpClient();
 
-// FluentValidation — scan validators and register ValidationFilter
-builder.Services.AddCoreMsValidation(typeof(Program).Assembly);
-
-// Exception handling
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
-
-// Configuration (Options pattern with validation)
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .ValidateDataAnnotations()
@@ -136,30 +67,23 @@ builder.Services.AddOptions<NotificationTemplateOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Centralized token provider
 builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 
-// Security (ICurrentUserService + HttpContextAccessor)
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-
-// Authentication (JWT Bearer)
-var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
-var jwtOptions = jwtSection.Get<JwtOptions>()!;
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
 var signingKey = string.IsNullOrEmpty(jwtOptions.SecretKey)
     ? new SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
     : new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
-builder.Services.AddAuthentication(options =>
+builder.Services.AddAuthentication(o =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options =>
+    .AddJwtBearer(o =>
     {
-        options.MapInboundClaims = false;
-        options.Events = JwtBearerEventsHandler.Create();
-        options.TokenValidationParameters = new TokenValidationParameters
+        o.MapInboundClaims = false;
+        o.Events = JwtBearerEventsHandler.Create();
+        o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = jwtOptions.Issuer,
@@ -174,102 +98,36 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-builder.Services.AddCoreMsAuthorization();
-
-// Rate limiting (Requirements 16.3, 16.4, 16.5)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // Login: 5 per minute per IP
     options.AddPolicy("login", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,
-                Window = TimeSpan.FromMinutes(1)
-            }));
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
 
-    // Registration: 3 per hour per IP
     options.AddPolicy("registration", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 3,
-                Window = TimeSpan.FromHours(1)
-            }));
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 3, Window = TimeSpan.FromHours(1) }));
 
-    // Password reset: 3 per hour per IP
     options.AddPolicy("password-reset", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 3,
-                Window = TimeSpan.FromHours(1)
-            }));
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 3, Window = TimeSpan.FromHours(1) }));
 });
 
-// Health checks (Aspire's AddNpgsqlDbContext already registers the postgres health check)
-
-// Background services
 builder.Services.AddHostedService<TokenCleanupService>();
 
 var app = builder.Build();
 
-// Auto-migrate and seed in Development
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<UserMsDbContext>();
-    await db.Database.MigrateAsync();
+if (await app.RunCoreMsDatabaseAsync<UserMsDbContext>(
+    seed: async (db, sp) => await new SeedDataService(db,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>()).SeedAsync())) return;
 
-    var seeder = new SeedDataService(
-        db,
-        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>());
-    await seeder.SeedAsync();
-}
-
-// CLI: seed data command (for non-Development environments)
-if (args.Contains("--seed"))
-{
-    using var scope = app.Services.CreateScope();
-    var seeder = new SeedDataService(
-        scope.ServiceProvider.GetRequiredService<UserMsDbContext>(),
-        scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>());
-    await seeder.SeedAsync();
-    return;
-}
-
-// CLI: migrate command
-if (args.Contains("--migrate"))
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<UserMsDbContext>();
-    await db.Database.MigrateAsync();
-    Console.WriteLine("Migrations applied successfully.");
-    return;
-}
-
-// Middleware pipeline (order matters)
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseExceptionHandler();
-app.UseCoreMsStatusCodePages();
-app.UseCors();
-app.UseMiddleware<AutoSaveChangesMiddleware>();
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseCoreMsApp();
 app.UseRateLimiter();
-app.MapControllers();
-app.MapDefaultEndpoints();
+app.MapCoreMsEndpoints();
 
 app.Run();
-
-public partial class Program { }

@@ -10,12 +10,4 @@
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="FluentValidation" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Swashbuckle.AspNetCore" />
-  </ItemGroup>
-
 </Project>

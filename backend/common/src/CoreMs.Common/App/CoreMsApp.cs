@@ -240,6 +240,51 @@ public static class CoreMsApp
     }
 
     /// <summary>
+    /// Registers an options class with configuration binding, data annotation validation, and startup validation.
+    /// The options class must have a <c>public const string SectionName</c> field.
+    ///
+    /// Replaces:
+    ///   builder.Services.AddOptions&lt;T&gt;().Bind(...).ValidateDataAnnotations().ValidateOnStart();
+    ///
+    /// Usage:
+    ///   builder.AddCoreMsOptions&lt;StorageOptions&gt;();
+    /// </summary>
+    public static IHostApplicationBuilder AddCoreMsOptions<TOptions>(
+        this IHostApplicationBuilder builder)
+        where TOptions : class
+    {
+        var sectionName = GetSectionName<TOptions>();
+        builder.Services.AddOptions<TOptions>()
+            .Bind(builder.Configuration.GetSection(sectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers an options class without DataAnnotation validation (only startup binding check).
+    /// </summary>
+    public static IHostApplicationBuilder AddCoreMsOptionsLite<TOptions>(
+        this IHostApplicationBuilder builder)
+        where TOptions : class
+    {
+        var sectionName = GetSectionName<TOptions>();
+        builder.Services.AddOptions<TOptions>()
+            .Bind(builder.Configuration.GetSection(sectionName))
+            .ValidateOnStart();
+        return builder;
+    }
+
+    private static string GetSectionName<TOptions>()
+    {
+        var field = typeof(TOptions).GetField("SectionName",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        return field?.GetValue(null) as string
+            ?? throw new InvalidOperationException(
+                $"{typeof(TOptions).Name} must declare 'public const string SectionName'.");
+    }
+
+    /// <summary>
     /// Configures the CoreMS middleware pipeline in the correct order.
     /// Call after dev-mode setup and before app.Run().
     /// Aspire health endpoints are mapped by the subsequent app.MapCoreMsEndpoints() call.

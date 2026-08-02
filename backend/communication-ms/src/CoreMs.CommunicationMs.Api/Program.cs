@@ -15,21 +15,10 @@ builder.AddCoreMsModules(typeof(MessagingService).Assembly, typeof(Program).Asse
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddOptions<EmailProviderOptions>()
-    .Bind(builder.Configuration.GetSection(EmailProviderOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<SmsProviderOptions>()
-    .Bind(builder.Configuration.GetSection(SmsProviderOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<SlackProviderOptions>()
-    .Bind(builder.Configuration.GetSection(SlackProviderOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<QueueOptions>()
-    .Bind(builder.Configuration.GetSection(QueueOptions.SectionName))
-    .ValidateOnStart();
+builder.AddCoreMsOptionsLite<EmailProviderOptions>();
+builder.AddCoreMsOptionsLite<SmsProviderOptions>();
+builder.AddCoreMsOptionsLite<SlackProviderOptions>();
+builder.AddCoreMsOptionsLite<QueueOptions>();
 
 builder.Services.AddScoped<IChannelProvider, EmailProvider>();
 builder.Services.AddScoped<IChannelProvider, SmsProvider>();

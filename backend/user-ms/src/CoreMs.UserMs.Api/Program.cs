@@ -33,39 +33,13 @@ builder.Services.AddCommunicationMsClient(
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<OAuth2ClientOptions>()
-    .Bind(builder.Configuration.GetSection(OAuth2ClientOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<SocialAuthOptions>()
-    .Bind(builder.Configuration.GetSection(SocialAuthOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<OAuth2ProviderOptions>()
-    .Bind(builder.Configuration.GetSection(OAuth2ProviderOptions.SectionName))
-    .ValidateOnStart();
-
-builder.Services.AddOptions<RabbitMqOptions>()
-    .Bind(builder.Configuration.GetSection(RabbitMqOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<AppOptions>()
-    .Bind(builder.Configuration.GetSection(AppOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<NotificationTemplateOptions>()
-    .Bind(builder.Configuration.GetSection(NotificationTemplateOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+builder.AddCoreMsOptions<JwtOptions>();
+builder.AddCoreMsOptions<OAuth2ClientOptions>();
+builder.AddCoreMsOptions<SocialAuthOptions>();
+builder.AddCoreMsOptionsLite<OAuth2ProviderOptions>();
+builder.AddCoreMsOptions<RabbitMqOptions>();
+builder.AddCoreMsOptions<AppOptions>();
+builder.AddCoreMsOptions<NotificationTemplateOptions>();
 
 builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 

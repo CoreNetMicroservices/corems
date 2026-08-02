@@ -14,15 +14,8 @@ builder.AddCoreMsApp(o => o
 builder.AddCoreMsDatabase<DocumentMsDbContext>();
 builder.AddCoreMsModules(typeof(DocumentService).Assembly, typeof(Program).Assembly);
 
-builder.Services.AddOptions<StorageOptions>()
-    .Bind(builder.Configuration.GetSection(StorageOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-builder.Services.AddOptions<DocumentOptions>()
-    .Bind(builder.Configuration.GetSection(DocumentOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+builder.AddCoreMsOptions<StorageOptions>();
+builder.AddCoreMsOptions<DocumentOptions>();
 
 builder.Services.AddHostedService<BucketInitializationService>();
 

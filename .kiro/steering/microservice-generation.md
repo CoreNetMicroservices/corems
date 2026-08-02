@@ -128,66 +128,54 @@ No `DbSet<T>` properties — repositories use `Context.Set<T>()`.
 ## Program.cs Template
 
 ```csharp
-using CoreMs.Common.Data;
-using CoreMs.Common.Extensions;
-using CoreMs.Common.Middleware;
+using CoreMs.Common.App;
+using CoreMs.ServiceDefaults;
 using CoreMs.<Service>Ms.Core.Services;
 using CoreMs.<Service>Ms.Infrastructure.Data;
-using FluentValidation;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers + JSON
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
-
-// Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// Database
-builder.Services.AddDbContext<<Service>MsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddScoped<CoreMsDbContext>(sp => sp.GetRequiredService<<Service>MsDbContext>());
-builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<<Service>MsDbContext>());
-
-// Auto-register services and repositories by convention
-builder.Services.AddCoreMsServices(typeof(<MainService>).Assembly);
-
-// FluentValidation
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
-
-// Exception handling
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
-
-// Authentication & Authorization
-builder.Services.AddAuthentication().AddJwtBearer();
-builder.Services.AddAuthorization();
+builder.AddCoreMsHost();
+builder.AddCoreMsApp(o => o.WithSwagger("<Service> Service", "Description here"));
+builder.AddCoreMsDatabase<<Service>MsDbContext>();
+builder.AddCoreMsModules(typeof(<MainService>).Assembly, typeof(Program).Assembly);
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+if (await app.RunCoreMsDatabaseAsync<<Service>MsDbContext>(
+    seed: async (db, sp) => await new SeedDataService(db,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>()).SeedAsync())) return;
 
-app.UseExceptionHandler();
-app.UseMiddleware<AutoSaveChangesMiddleware>();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-app.MapHealthChecks("/health");
+app.UseCoreMsApp();
+app.MapCoreMsEndpoints();
 
 app.Run();
+```
 
-public partial class Program { }
+### Program.cs API Reference
+
+| Method | Purpose |
+|--------|---------|
+| `builder.AddCoreMsHost()` | Aspire: OpenTelemetry, health checks, service discovery |
+| `builder.AddCoreMsApp(o => ...)` | CORS, controllers, Swagger, JWT auth, exception handling |
+| `builder.AddCoreMsDatabase<T>()` | Aspire Npgsql DbContext + DI aliases |
+| `builder.AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository] + FluentValidation |
+| `builder.AddCoreMsOptions<T>()` | Bind options with DataAnnotation validation |
+| `builder.AddCoreMsOptionsLite<T>()` | Bind options without DataAnnotation validation |
+| `builder.AddCoreMsClient<T>(name)` | Service-to-service typed HttpClient with JWT forwarding |
+| `app.RunCoreMsDatabaseAsync<T>()` | Dev auto-migrate + seed, CLI --migrate/--seed support |
+| `app.UseCoreMsApp()` | Middleware pipeline (Swagger, exceptions, CORS, auth) |
+| `app.MapCoreMsEndpoints()` | Health check endpoints (/health, /alive) |
+
+### CoreMsAppOptions fluent API
+
+```csharp
+builder.AddCoreMsApp(o => o
+    .WithSwagger("Title", "Description")  // Swagger doc metadata
+    .WithEnumsAsStrings()                  // JsonStringEnumConverter
+    .WithoutJwtAuth()                      // Skip JWT consumer auth (token issuers only)
+    .WithCorsOrigins("http://custom:3000") // Override CORS origins
+    .WithoutSwagger());                    // Disable Swagger entirely
 ```
 
 ## Port Allocation

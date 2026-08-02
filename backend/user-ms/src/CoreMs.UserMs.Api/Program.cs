@@ -28,8 +28,7 @@ builder.Services.AddSwaggerGen(o =>
     if (File.Exists(xmlPath)) o.IncludeXmlComments(xmlPath);
 });
 
-builder.Services.AddCommunicationMsClient(
-    builder.Configuration["CommunicationMs:BaseUrl"] ?? "http://localhost:5101");
+builder.AddCommunicationMsClient();
 
 builder.Services.AddHttpClient();
 

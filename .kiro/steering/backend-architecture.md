@@ -51,21 +51,35 @@ Single shared library containing all common infrastructure:
 
 ```
 CoreMs.Common/
+├── App/           # CoreMsApp (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions, UseCoreMsApp, RunCoreMsDatabaseAsync)
 ├── Data/          # CoreMsDbContext (abstract base)
-├── Exceptions/    # ErrorInfo, Error, ErrorResponse, ServiceException, DefaultExceptionCodes
-├── Extensions/    # [Service], [Repository] attributes, ServiceCollectionExtensions (AddCoreMsServices)
-├── Middleware/    # GlobalExceptionHandler, AutoSaveChangesMiddleware
-└── Repository/    # CrudRepository, SearchableRepository, QueryParameters, PagedResult, FilterParser
+├── Exceptions/    # ErrorInfo, Error, ErrorResponse, ServiceException, DefaultErrors
+├── Extensions/    # [Service], [Repository] attributes, ServiceCollectionExtensions, ValidationExtensions
+├── Http/          # AddCoreMsClient, ServiceAuthDelegatingHandler
+├── Messaging/     # MassTransit extensions (AddCoreMsMessaging)
+├── Middleware/    # GlobalExceptionHandler, AutoSaveChangesMiddleware, ValidationFilter, StatusCodePages
+├── Repository/    # CrudRepository, SearchableRepository, PagedResult, QueryParameters, FilterParser
+├── Security/      # JWT, roles, CurrentUserService, TokenProvider
+```
+
+### CoreMs.Common.Testing
+
+Shared integration test infrastructure:
+
+```
+CoreMs.Common.Testing/
+├── CoreMsTestFactory<TProgram, TDbContext>  # SQLite swap, test auth, hosted service removal
+└── CoreMsTestAuthHandler                     # Bearer token: "userId|role1,role2"
 ```
 
 There is no `CoreMs.Common.Api` project — contracts live in `CoreMs.Common.Contracts`.
 
 ## Shared Infrastructure Approach
 
-- Reference `CoreMs.Common` and `CoreMs.Common.Security` as project references
-- Use `AddCoreMsServices()` for convention-based DI registration
+- All infrastructure packages live in `CoreMs.Common` — individual Api projects have zero direct package references
+- Use `AddCoreMsModules()` for convention-based DI registration (services + validators in one call)
+- Use `AddCoreMsApp()` / `UseCoreMsApp()` for all common middleware and configuration
 - DO NOT duplicate middleware or DI registration across services
-- Common library wires exception handling, auto-save, and base repository classes
 
 ### Dependencies (Directory.Packages.props)
 - Central package version management
@@ -107,8 +121,8 @@ user-ms/
 Services and repositories use attribute-based auto-registration:
 
 ```csharp
-// Program.cs — one line registers all [Service] and [Repository] classes from the assembly
-builder.Services.AddCoreMsServices(typeof(UserService).Assembly);
+// Program.cs — one call registers services, repositories, and validators
+builder.AddCoreMsModules(typeof(UserService).Assembly, typeof(Program).Assembly);
 
 // Service class
 [Service]
@@ -196,28 +210,14 @@ var commMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communicat
 
 ## CORS
 
-Each service configures CORS in Program.cs:
+## CORS
+
+CORS is handled automatically by `AddCoreMsApp()`. It reads `Cors:AllowedOrigins` from configuration, falling back to `http://localhost:8080`.
+
+Override explicitly if needed:
 ```csharp
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins(
-                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:8080"])
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
-// In middleware pipeline (before auth):
-app.UseCors();
-app.UseAuthentication();
-app.UseAuthorization();
+builder.AddCoreMsApp(o => o.WithCorsOrigins("http://custom:3000"));
 ```
-
-Add `Cors:AllowedOrigins` to service appsettings.json.
 
 ## Token Architecture
 
@@ -238,17 +238,17 @@ Add `Cors:AllowedOrigins` to service appsettings.json.
 - Multiple roles: multiple `"role"` claims in access token
 - Refresh token uses `"roles"` (plural) for frontend compatibility
 
-## Auto-Migrate and Seed (Development)
+## Auto-Migrate and Seed
 
-Services auto-migrate and seed in Development mode:
+Handled by `RunCoreMsDatabaseAsync<T>()`:
 ```csharp
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ServiceDbContext>();
-    await db.Database.MigrateAsync();
-    
-    var seeder = new SeedDataService(db, logger);
-    await seeder.SeedAsync();  // Idempotent: checks if data exists
-}
+if (await app.RunCoreMsDatabaseAsync<MyDbContext>(
+    seed: async (db, sp) => await new SeedDataService(db,
+        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>()).SeedAsync())) return;
 ```
+
+Behaviour:
+- **Development**: always migrates, runs seeder if provided
+- **`--migrate` arg**: migrates and exits
+- **`--seed` arg**: seeds and exits
+- **Production**: does nothing (CI/CD handles migrations)

@@ -10,6 +10,7 @@
     <ProjectReference Include="$(SolutionRoot)translation-ms\src\CoreMs.TranslationMs.Api\CoreMs.TranslationMs.Api.csproj" />
     <ProjectReference Include="$(SolutionRoot)translation-ms\src\CoreMs.TranslationMs.Core\CoreMs.TranslationMs.Core.csproj" />
     <ProjectReference Include="$(SolutionRoot)translation-ms\src\CoreMs.TranslationMs.Infrastructure\CoreMs.TranslationMs.Infrastructure.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Testing\CoreMs.Common.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

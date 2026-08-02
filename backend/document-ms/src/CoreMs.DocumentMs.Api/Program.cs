@@ -137,9 +137,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddCoreMsAuthorization();
 
-// Health checks
-builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("corems") ?? "", name: "postgresql");
+// Health checks (Aspire's AddNpgsqlDbContext already registers the postgres health check)
 
 builder.Services.AddHostedService<BucketInitializationService>();
 

@@ -55,6 +55,7 @@ public class SendMessageConsumer : IConsumer<SendMessageCommand>
             {
                 entity.Status = MessageStatus.Sent;
                 entity.SentAt = DateTime.UtcNow;
+                await _messageRepository.SaveAsync(context.CancellationToken);
             }
 
             _logger.LogInformation("Message sent successfully: {MessageId}", command.MessageId);
@@ -67,6 +68,7 @@ public class SendMessageConsumer : IConsumer<SendMessageCommand>
             {
                 entity.Status = MessageStatus.Failed;
                 entity.SentAt = DateTime.UtcNow;
+                await _messageRepository.SaveAsync(context.CancellationToken);
             }
 
             throw; // MassTransit will retry based on retry policy

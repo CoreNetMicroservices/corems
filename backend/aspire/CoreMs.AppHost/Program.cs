@@ -1,7 +1,10 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgresPassword = builder.AddParameter("postgres-password", secret: true);
-var secrets = builder.Configuration.GetSection("Secrets");
+var common = builder.Configuration.GetSection("Common");
+var userMs_ = builder.Configuration.GetSection("UserMs");
+var communicationMs_ = builder.Configuration.GetSection("CommunicationMs");
+var documentMs_ = builder.Configuration.GetSection("DocumentMs");
 
 var postgres = builder.AddPostgres("postgres", password: postgresPassword, port: 5432)
     .WithDataVolume("corems-postgres-data")
@@ -31,49 +34,55 @@ var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("c
     .WithReference(rabbitmq)
     .WaitFor(postgres)
     .WaitFor(rabbitmq)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Queue__Enabled", "true")
-    .WithEnvironment("Mail__Password", secrets["MailPassword"] ?? "");
+    .WithEnvironment("Mail__Enabled", communicationMs_["MailEnabled"] ?? "false")
+    .WithEnvironment("Mail__Host", communicationMs_["MailHost"] ?? "localhost")
+    .WithEnvironment("Mail__Port", communicationMs_["MailPort"] ?? "1025")
+    .WithEnvironment("Mail__Username", communicationMs_["MailUsername"] ?? "")
+    .WithEnvironment("Mail__Password", communicationMs_["MailPassword"] ?? "")
+    .WithEnvironment("Mail__DefaultFrom", communicationMs_["MailDefaultFrom"] ?? "noreply@corems.local")
+    .WithEnvironment("Mail__UseSsl", communicationMs_["MailUseSsl"] ?? "false");
 
 var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithReference(postgres)
     .WaitFor(postgres)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
-    .WithEnvironment("Jwt__PrivateKeyBase64", secrets["JwtPrivateKeyBase64"] ?? "")
-    .WithEnvironment("Jwt__PublicKeyBase64", secrets["JwtPublicKeyBase64"] ?? "")
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__PrivateKeyBase64", userMs_["JwtPrivateKeyBase64"] ?? "")
+    .WithEnvironment("Jwt__PublicKeyBase64", userMs_["JwtPublicKeyBase64"] ?? "")
     .WithEnvironment("CommunicationMs__BaseUrl", communicationMs.GetEndpoint("http"))
-    .WithEnvironment("SocialAuth__Google__ClientId", secrets["GoogleClientId"] ?? "")
-    .WithEnvironment("SocialAuth__Google__ClientSecret", secrets["GoogleClientSecret"] ?? "")
-    .WithEnvironment("SocialAuth__GitHub__ClientId", secrets["GitHubClientId"] ?? "")
-    .WithEnvironment("SocialAuth__GitHub__ClientSecret", secrets["GitHubClientSecret"] ?? "")
-    .WithEnvironment("SocialAuth__LinkedIn__ClientId", secrets["LinkedInClientId"] ?? "")
-    .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", secrets["LinkedInClientSecret"] ?? "");
+    .WithEnvironment("SocialAuth__Google__ClientId", userMs_["GoogleClientId"] ?? "")
+    .WithEnvironment("SocialAuth__Google__ClientSecret", userMs_["GoogleClientSecret"] ?? "")
+    .WithEnvironment("SocialAuth__GitHub__ClientId", userMs_["GitHubClientId"] ?? "")
+    .WithEnvironment("SocialAuth__GitHub__ClientSecret", userMs_["GitHubClientSecret"] ?? "")
+    .WithEnvironment("SocialAuth__LinkedIn__ClientId", userMs_["LinkedInClientId"] ?? "")
+    .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", userMs_["LinkedInClientSecret"] ?? "");
 
 var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
     .WithReference(postgres)
     .WaitFor(postgres)
     .WaitFor(minio)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Storage__Endpoint", minio.GetEndpoint("api"))
     .WithEnvironment("Storage__AccessKey", minioAccessKey)
     .WithEnvironment("Storage__SecretKey", minioSecretKey)
-    .WithEnvironment("Document__LinkSigningKey", secrets["DocumentLinkSigningKey"] ?? "");
+    .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
 
 var translationMs = builder.AddProject<Projects.CoreMs_TranslationMs_Api>("translation-ms")
     .WithReference(postgres)
     .WaitFor(postgres)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
 
 var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms")
     .WithReference(postgres)
     .WaitFor(postgres)
-    .WithEnvironment("Jwt__SecretKey", secrets["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
 
-var frontend = builder.AddViteApp("frontend", "../../../frontend")
+builder.AddViteApp("frontend", "../../../frontend")
     .WithHttpEndpoint(port: 8080, env: "PORT")
     .WithEnvironment("REACT_USER_MS_BASE_URL", userMs.GetEndpoint("http"))
     .WithEnvironment("REACT_COMMUNICATION_MS_BASE_URL", communicationMs.GetEndpoint("http"))

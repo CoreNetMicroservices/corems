@@ -212,9 +212,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-// Health checks
-builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("corems") ?? builder.Configuration.GetConnectionString("DefaultConnection") ?? "", name: "postgresql");
+// Health checks (Aspire's AddNpgsqlDbContext already registers the postgres health check)
 
 // Background services
 builder.Services.AddHostedService<TokenCleanupService>();

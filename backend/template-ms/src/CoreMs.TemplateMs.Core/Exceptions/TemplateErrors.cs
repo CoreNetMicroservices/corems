@@ -9,4 +9,6 @@ public static class TemplateErrors
     public static readonly ErrorInfo InvalidTemplateSyntax = new("template.invalid_syntax", 400, "Template contains invalid Handlebars syntax");
     public static readonly ErrorInfo MissingRequiredParameters = new("template.missing_parameters", 400, "Required template parameters are missing");
     public static readonly ErrorInfo RenderingFailed = new("template.rendering_failed", 500, "Template rendering failed");
+    public static readonly ErrorInfo CircularPartialReference = new("template.circular_partial", 400, "Circular partial template reference detected");
+    public static readonly ErrorInfo PartialNotFound = new("template.partial_not_found", 404, "Referenced partial template not found");
 }

@@ -84,9 +84,9 @@ public abstract class SearchableRepository<TEntity> : CrudRepository<TEntity>
         if (!string.IsNullOrWhiteSpace(parameters.Search))
             query = ApplySearch(query, parameters.Search);
 
-        if (parameters.Filters is { Count: > 0 })
+        if (parameters.Filter is { Count: > 0 })
         {
-            var filterRequests = FilterParser.Parse(parameters.Filters, FilterFields, FieldAliases);
+            var filterRequests = FilterParser.Parse(parameters.Filter, FilterFields, FieldAliases);
             query = ApplyFilters(query, filterRequests);
         }
 

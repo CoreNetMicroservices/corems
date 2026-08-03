@@ -13,10 +13,29 @@ public class TemplateEngine
         @"\{\{(?:#(?:if|each|unless|with)\s+)?([a-zA-Z_][a-zA-Z0-9_.]*)\s*\}\}",
         RegexOptions.Compiled);
 
+    private static readonly Regex PartialRegex = new(
+        @"\{\{>\s*([a-zA-Z_][a-zA-Z0-9_\-]*)\s*\}\}",
+        RegexOptions.Compiled);
+
     private static readonly HashSet<string> BuiltinKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "this", "else", "true", "false", "null", "undefined"
     };
+
+    /// <summary>
+    /// Compile a template with partials pre-registered in a scoped Handlebars environment.
+    /// </summary>
+    public HandlebarsTemplate<object, object> CompileWithPartials(string content, IReadOnlyDictionary<string, string> partials)
+    {
+        var env = Handlebars.Create();
+
+        foreach (var (name, partialContent) in partials)
+        {
+            env.RegisterTemplate(name, partialContent);
+        }
+
+        return env.Compile(content);
+    }
 
     public HandlebarsTemplate<object, object> Compile(string content)
     {
@@ -41,6 +60,21 @@ public class TemplateEngine
         {
             throw ServiceException.Of(TemplateErrors.InvalidTemplateSyntax, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Extract partial template IDs referenced via {{> partialName}} syntax.
+    /// </summary>
+    public IReadOnlyList<string> ExtractPartialReferences(string content)
+    {
+        var partials = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (Match match in PartialRegex.Matches(content))
+        {
+            partials.Add(match.Groups[1].Value);
+        }
+
+        return partials.Order().ToList();
     }
 
     public IReadOnlyList<string> ExtractParameters(string content)

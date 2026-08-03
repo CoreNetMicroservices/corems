@@ -16,6 +16,8 @@ public class TemplateService(
     TemplateCache cache,
     ICurrentUserService currentUserService)
 {
+    private const int MaxPartialDepth = 10;
+
     public async Task<PagedResult<TemplateDto>> GetAllAsync(QueryParameters parameters, CancellationToken ct = default)
     {
         var result = await repository.GetPagedAsync(parameters, ct);
@@ -85,7 +87,6 @@ public class TemplateService(
             engine.ValidateSyntax(request.Content);
             entity.Content = request.Content;
 
-            // Re-extract params when content changes and no explicit paramSchema provided
             if (request.ParamSchema == null)
             {
                 var extractedParams = engine.ExtractParameters(request.Content);
@@ -128,18 +129,31 @@ public class TemplateService(
             ?? throw ServiceException.Of(TemplateErrors.TemplateNotFound,
                 $"Template '{request.TemplateId}' with language '{language}' not found");
 
-        ValidateRequiredParameters(entity, request.Parameters);
+        // Resolve all partial templates recursively
+        var partials = await ResolvePartialsAsync(entity.Content, language, ct);
 
-        var compiled = cache.Get(request.TemplateId, language);
-        if (compiled == null)
-        {
-            compiled = engine.Compile(entity.Content);
-            cache.Set(request.TemplateId, language, compiled);
-        }
+        // Validate parameters against this template + all partials
+        ValidateRequiredParameters(entity, request.Parameters, partials);
 
         try
         {
-            var rendered = engine.Render(compiled, request.Parameters);
+            string rendered;
+            if (partials.Count > 0)
+            {
+                var compiled = engine.CompileWithPartials(entity.Content, partials);
+                rendered = engine.Render(compiled, request.Parameters);
+            }
+            else
+            {
+                var compiled = cache.Get(request.TemplateId, language);
+                if (compiled == null)
+                {
+                    compiled = engine.Compile(entity.Content);
+                    cache.Set(request.TemplateId, language, compiled);
+                }
+                rendered = engine.Render(compiled, request.Parameters);
+            }
+
             return new RenderTemplateResponse(rendered);
         }
         catch (Exception ex) when (ex is not ServiceException)
@@ -156,7 +170,10 @@ public class TemplateService(
             ?? throw ServiceException.Of(TemplateErrors.TemplateNotFound,
                 $"Template '{templateId}' with language '{language}' not found");
 
-        var requiredParams = GetRequiredParameterNames(entity);
+        // Include params from sub-templates in the metadata
+        var partials = await ResolvePartialsAsync(entity.Content, language, ct);
+        var allRequiredParams = GetAggregatedRequiredParameters(entity, partials);
+
         return new TemplateMetadataDto(
             entity.TemplateId,
             entity.Language,
@@ -164,16 +181,79 @@ public class TemplateService(
             entity.Description,
             entity.Category,
             entity.ParamSchema,
-            requiredParams);
+            allRequiredParams);
     }
 
-    private static void ValidateRequiredParameters(TemplateEntity entity, Dictionary<string, object> providedParams)
+    /// <summary>
+    /// Recursively resolve all partial templates referenced via {{> partialId}} syntax.
+    /// Detects circular references and enforces a max depth.
+    /// </summary>
+    private async Task<Dictionary<string, string>> ResolvePartialsAsync(
+        string content, string language, CancellationToken ct, HashSet<string>? visited = null, int depth = 0)
     {
-        var required = GetRequiredParameterNames(entity);
-        var missing = required.Where(p => !providedParams.ContainsKey(p)).ToList();
+        if (depth > MaxPartialDepth)
+            throw ServiceException.Of(TemplateErrors.CircularPartialReference,
+                "Exceeded maximum partial template nesting depth");
+
+        visited ??= new HashSet<string>(StringComparer.Ordinal);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var partialIds = engine.ExtractPartialReferences(content);
+        if (partialIds.Count == 0) return result;
+
+        foreach (var partialId in partialIds)
+        {
+            if (result.ContainsKey(partialId)) continue; // Already resolved in this tree
+
+            if (!visited.Add(partialId))
+                throw ServiceException.Of(TemplateErrors.CircularPartialReference,
+                    $"Circular reference detected: partial '{partialId}' references itself");
+
+            var partialEntity = await repository.GetByTemplateIdAndLanguageAsync(partialId, language, ct)
+                ?? throw ServiceException.Of(TemplateErrors.PartialNotFound,
+                    $"Partial template '{partialId}' with language '{language}' not found");
+
+            result[partialId] = partialEntity.Content;
+
+            // Recursively resolve nested partials
+            var nested = await ResolvePartialsAsync(partialEntity.Content, language, ct, visited, depth + 1);
+            foreach (var (key, value) in nested)
+            {
+                result.TryAdd(key, value);
+            }
+        }
+
+        return result;
+    }
+
+    private void ValidateRequiredParameters(
+        TemplateEntity entity, Dictionary<string, object> providedParams, Dictionary<string, string> partials)
+    {
+        var allRequired = GetAggregatedRequiredParameters(entity, partials);
+        var missing = allRequired.Where(p => !providedParams.ContainsKey(p)).ToList();
+
         if (missing.Count > 0)
             throw ServiceException.Of(TemplateErrors.MissingRequiredParameters,
                 $"Missing parameters: {string.Join(", ", missing)}");
+    }
+
+    /// <summary>
+    /// Get required parameters from the main template plus all its partial sub-templates.
+    /// </summary>
+    private IReadOnlyList<string> GetAggregatedRequiredParameters(
+        TemplateEntity entity, Dictionary<string, string> partials)
+    {
+        var allRequired = new HashSet<string>(GetRequiredParameterNames(entity), StringComparer.Ordinal);
+
+        // Extract parameters used in partials content (these are rendered with the same context)
+        foreach (var partialContent in partials.Values)
+        {
+            var partialParams = engine.ExtractParameters(partialContent);
+            foreach (var p in partialParams)
+                allRequired.Add(p);
+        }
+
+        return allRequired.Order().ToList();
     }
 
     private static IReadOnlyList<string> GetRequiredParameterNames(TemplateEntity entity)
@@ -186,7 +266,7 @@ public class TemplateService(
                 if (kvp.Value is Dictionary<string, object> schema &&
                     schema.TryGetValue("required", out var req))
                     return req is true or "true" or "True";
-                return true; // Default: all params are required
+                return true;
             })
             .Select(kvp => kvp.Key)
             .ToList();

@@ -24,8 +24,8 @@ public class MessagingService
         // Scope to user if not admin
         if (scopeUserId.HasValue)
         {
-            parameters.Filters ??= [];
-            parameters.Filters.Add($"UserId:eq:{scopeUserId.Value}");
+            parameters.Filter ??= [];
+            parameters.Filter.Add($"UserId:eq:{scopeUserId.Value}");
         }
 
         if (string.IsNullOrEmpty(parameters.Sort))

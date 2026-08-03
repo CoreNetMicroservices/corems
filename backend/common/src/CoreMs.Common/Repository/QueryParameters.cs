@@ -39,7 +39,7 @@ public class QueryParameters
     public string? Search { get; set; }
 
     /// <summary>
-    /// Filter expressions. Format: "field:operation:value" (e.g., "isActive:eq:true", "createdAt:gte:2024-01-01")
+    /// Filter expressions. Format: "field:value" (defaults to eq) or "field:operation:value".
     /// </summary>
-    public List<string>? Filters { get; set; }
+    public List<string>? Filter { get; set; }
 }

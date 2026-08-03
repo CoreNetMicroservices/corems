@@ -18,15 +18,36 @@ public static class FilterParser
         foreach (var raw in rawFilters)
         {
             var parts = raw.Split(':', 3);
-            if (parts.Length < 3) continue;
+            if (parts.Length < 2) continue;
 
-            var field = aliases != null && aliases.TryGetValue(parts[0], out var mapped) ? mapped : parts[0];
-            if (!allowedFields.Contains(field)) continue;
+            string field;
+            FilterOperation op;
+            string value;
 
-            var op = ParseOperation(parts[1]);
-            if (op == null) continue;
+            if (parts.Length == 2)
+            {
+                // "field:value" — default to eq
+                field = parts[0];
+                op = FilterOperation.Equals;
+                value = parts[1];
+            }
+            else
+            {
+                // "field:operation:value"
+                field = parts[0];
+                var parsed = ParseOperation(parts[1]);
+                if (parsed == null) continue;
+                op = parsed.Value;
+                value = parts[2];
+            }
 
-            result.Add(new FilterRequest(field, op.Value, parts[2]));
+            field = aliases != null && aliases.TryGetValue(field, out var mapped) ? mapped : field;
+
+            // Case-insensitive match against allowed fields
+            var matchedField = allowedFields.FirstOrDefault(f => f.Equals(field, StringComparison.OrdinalIgnoreCase));
+            if (matchedField == null) continue;
+
+            result.Add(new FilterRequest(matchedField, op, value));
         }
         return result;
     }

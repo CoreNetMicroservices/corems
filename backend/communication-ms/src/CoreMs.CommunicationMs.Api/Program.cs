@@ -1,9 +1,11 @@
 using CoreMs.Common.App;
 using CoreMs.Common.Messaging;
+using CoreMs.Common.Security;
 using CoreMs.CommunicationMs.Core.Configuration;
 using CoreMs.CommunicationMs.Core.Services;
 using CoreMs.CommunicationMs.Core.Services.Providers;
 using CoreMs.CommunicationMs.Infrastructure.Data;
+using CoreMs.DocumentMs.Client;
 using CoreMs.ServiceDefaults;
 using CoreMs.TemplateMs.Client;
 
@@ -16,6 +18,8 @@ builder.AddCoreMsModules(typeof(MessagingService).Assembly, typeof(Program).Asse
 
 builder.Services.AddHttpClient();
 builder.AddTemplateMsClient();
+builder.AddDocumentMsClient();
+builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 
 builder.AddCoreMsOptionsLite<EmailProviderOptions>();
 builder.AddCoreMsOptionsLite<SmsProviderOptions>();

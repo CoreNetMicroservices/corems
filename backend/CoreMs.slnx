@@ -27,6 +27,7 @@
   </Folder>
   <Folder Name="/document-ms/src/">
     <Project Path="document-ms/src/CoreMs.DocumentMs.Api/CoreMs.DocumentMs.Api.csproj" />
+    <Project Path="document-ms/src/CoreMs.DocumentMs.Client/CoreMs.DocumentMs.Client.csproj" />
     <Project Path="document-ms/src/CoreMs.DocumentMs.Core/CoreMs.DocumentMs.Core.csproj" />
     <Project Path="document-ms/src/CoreMs.DocumentMs.Infrastructure/CoreMs.DocumentMs.Infrastructure.csproj" />
   </Folder>

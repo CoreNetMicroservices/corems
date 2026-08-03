@@ -1,6 +1,5 @@
 using System.Text.Json;
-using CoreMs.Common.Extensions;
-using CoreMs.CommunicationMs.Core.Entities;
+using CoreMs.Common.Http;
 using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Models;
 using CoreMs.CommunicationMs.Core.Repositories;
@@ -12,31 +11,30 @@ namespace CoreMs.CommunicationMs.Core.Services;
 
 /// <summary>
 /// MassTransit consumer that picks messages from the queue and sends via the appropriate provider.
+/// Sets ServiceCallContext with the actor identity so downstream HTTP calls are authenticated.
 /// </summary>
-public class SendMessageConsumer : IConsumer<SendMessageCommand>
+public class SendMessageConsumer(
+    IEnumerable<IChannelProvider> providers,
+    MessageRepository messageRepository,
+    ServiceCallContext serviceCallContext,
+    ILogger<SendMessageConsumer> logger) : IConsumer<SendMessageCommand>
 {
-    private readonly IEnumerable<IChannelProvider> _providers;
-    private readonly MessageRepository _messageRepository;
-    private readonly ILogger<SendMessageConsumer> _logger;
-
-    public SendMessageConsumer(
-        IEnumerable<IChannelProvider> providers,
-        MessageRepository messageRepository,
-        ILogger<SendMessageConsumer> logger)
-    {
-        _providers = providers;
-        _messageRepository = messageRepository;
-        _logger = logger;
-    }
-
     public async Task Consume(ConsumeContext<SendMessageCommand> context)
     {
         var command = context.Message;
-        _logger.LogInformation("Processing queued message: {MessageId}, type: {Type}", command.MessageId, command.Type);
+        logger.LogInformation("Processing queued message: {MessageId}, type: {Type}", command.MessageId, command.Type);
 
-        var entity = await _messageRepository.GetByUuidAsync(command.MessageId, context.CancellationToken);
+        if (!string.IsNullOrEmpty(command.ActorUserId))
+        {
+            var roles = command.ActorRoles?
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            serviceCallContext.SetActor(command.ActorUserId, roles);
+        }
 
-        var provider = _providers.FirstOrDefault(p => p.MessageType == command.Type)
+        var entity = await messageRepository.GetByUuidAsync(command.MessageId, context.CancellationToken);
+
+        var provider = providers.FirstOrDefault(p => p.MessageType == command.Type)
             ?? throw new InvalidOperationException($"No provider for type: {command.Type}");
 
         try
@@ -55,23 +53,23 @@ public class SendMessageConsumer : IConsumer<SendMessageCommand>
             {
                 entity.Status = MessageStatus.Sent;
                 entity.SentAt = DateTime.UtcNow;
-                await _messageRepository.SaveAsync(context.CancellationToken);
+                await messageRepository.SaveAsync(context.CancellationToken);
             }
 
-            _logger.LogInformation("Message sent successfully: {MessageId}", command.MessageId);
+            logger.LogInformation("Message sent successfully: {MessageId}", command.MessageId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send message: {MessageId}", command.MessageId);
+            logger.LogError(ex, "Failed to send message: {MessageId}", command.MessageId);
 
             if (entity != null)
             {
                 entity.Status = MessageStatus.Failed;
                 entity.SentAt = DateTime.UtcNow;
-                await _messageRepository.SaveAsync(context.CancellationToken);
+                await messageRepository.SaveAsync(context.CancellationToken);
             }
 
-            throw; // MassTransit will retry based on retry policy
+            throw;
         }
     }
 }

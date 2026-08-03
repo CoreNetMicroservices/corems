@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
     <ProjectReference Include="$(SolutionRoot)template-ms\src\CoreMs.TemplateMs.Client\CoreMs.TemplateMs.Client.csproj" />
+    <ProjectReference Include="$(SolutionRoot)document-ms\src\CoreMs.DocumentMs.Client\CoreMs.DocumentMs.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

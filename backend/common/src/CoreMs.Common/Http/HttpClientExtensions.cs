@@ -7,7 +7,7 @@ public static class HttpClientExtensions
 {
     /// <summary>
     /// Registers a typed HttpClient for service-to-service communication using Aspire service discovery.
-    /// Automatically forwards JWT token and correlation ID from the incoming request.
+    /// Automatically handles auth: forwards JWT from HttpContext, or mints a fresh token from ServiceCallContext.
     ///
     /// The serviceName is the Aspire resource name (e.g., "communication-ms") which gets resolved
     /// by service discovery at runtime.
@@ -19,7 +19,8 @@ public static class HttpClientExtensions
         this IHostApplicationBuilder builder,
         string serviceName) where TClient : class
     {
-        builder.Services.AddTransient<ServiceAuthDelegatingHandler>();
+        builder.Services.AddScoped<ServiceCallContext>();
+        builder.Services.AddScoped<ServiceAuthDelegatingHandler>();
 
         builder.Services.AddHttpClient<TClient>(client =>
             {
@@ -34,7 +35,7 @@ public static class HttpClientExtensions
 
     /// <summary>
     /// Registers a typed HttpClient for service-to-service communication with an explicit base URL.
-    /// Automatically forwards JWT token and correlation ID from the incoming request.
+    /// Automatically handles auth: forwards JWT from HttpContext, or mints a fresh token from ServiceCallContext.
     ///
     /// Use this variant when not using Aspire service discovery (e.g., in tests or standalone mode).
     ///
@@ -45,7 +46,8 @@ public static class HttpClientExtensions
         this IServiceCollection services,
         string baseUrl) where TClient : class
     {
-        services.AddTransient<ServiceAuthDelegatingHandler>();
+        services.AddScoped<ServiceCallContext>();
+        services.AddScoped<ServiceAuthDelegatingHandler>();
 
         return services.AddHttpClient<TClient>(client =>
             {

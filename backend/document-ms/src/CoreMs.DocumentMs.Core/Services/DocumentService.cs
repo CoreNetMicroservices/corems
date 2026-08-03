@@ -179,7 +179,8 @@ public class DocumentService(
         if (entity.UserId == currentUser)
             return;
 
-        if (roles.Contains(CoreMsRoles.DocumentMsAdmin) || roles.Contains(CoreMsRoles.SuperAdmin))
+        if (roles.Contains(CoreMsRoles.DocumentMsAdmin) || roles.Contains(CoreMsRoles.SuperAdmin)
+            || roles.Contains(CoreMsRoles.CommunicationMsAdmin))
             return;
 
         throw ServiceException.Of(DocumentServiceErrors.DocumentAccessDenied);

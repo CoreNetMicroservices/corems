@@ -1,5 +1,6 @@
 using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Models;
+using CoreMs.DocumentMs.Client;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,11 +24,16 @@ public class EmailProviderOptions
 public class EmailProvider : IChannelProvider
 {
     private readonly EmailProviderOptions _options;
+    private readonly DocumentMsClient _documentClient;
     private readonly ILogger<EmailProvider> _logger;
 
-    public EmailProvider(IOptions<EmailProviderOptions> options, ILogger<EmailProvider> logger)
+    public EmailProvider(
+        IOptions<EmailProviderOptions> options,
+        DocumentMsClient documentClient,
+        ILogger<EmailProvider> logger)
     {
         _options = options.Value;
+        _documentClient = documentClient;
         _logger = logger;
     }
 
@@ -58,7 +64,25 @@ public class EmailProvider : IChannelProvider
                 message.Bcc.Add(MailboxAddress.Parse(bcc));
 
         var isHtml = email.EmailType.Equals("html", StringComparison.OrdinalIgnoreCase);
-        message.Body = new TextPart(isHtml ? "html" : "plain") { Text = email.Body ?? "" };
+        var textPart = new TextPart(isHtml ? "html" : "plain") { Text = email.Body ?? "" };
+
+        if (email.DocumentUuids is { Count: > 0 })
+        {
+            var multipart = new Multipart("mixed");
+            multipart.Add(textPart);
+
+            foreach (var docUuid in email.DocumentUuids)
+            {
+                var attachment = await FetchAttachmentAsync(docUuid, ct);
+                if (attachment != null) multipart.Add(attachment);
+            }
+
+            message.Body = multipart;
+        }
+        else
+        {
+            message.Body = textPart;
+        }
 
         using var client = new SmtpClient();
         await client.ConnectAsync(_options.Host, _options.Port, _options.UseSsl, ct);
@@ -70,5 +94,37 @@ public class EmailProvider : IChannelProvider
         await client.DisconnectAsync(true, ct);
 
         _logger.LogInformation("Email sent to {Recipient}: {Subject}", email.Recipient, email.Subject);
+    }
+
+    private async Task<MimePart?> FetchAttachmentAsync(Guid documentUuid, CancellationToken ct)
+    {
+        try
+        {
+            var download = await _documentClient.DownloadDocumentAsync(documentUuid, ct);
+            if (download == null)
+            {
+                _logger.LogWarning("Document {DocumentUuid} could not be downloaded (non-success response from document-ms)", documentUuid);
+                return null;
+            }
+
+            var memoryStream = new MemoryStream();
+            await download.Stream.CopyToAsync(memoryStream, ct);
+            memoryStream.Position = 0;
+            download.Dispose();
+
+            var contentType = ContentType.Parse(download.ContentType);
+            return new MimePart(contentType)
+            {
+                Content = new MimeContent(memoryStream),
+                ContentDisposition = new ContentDisposition(ContentDisposition.Attachment),
+                ContentTransferEncoding = ContentEncoding.Base64,
+                FileName = download.Filename
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch document {DocumentUuid} for attachment", documentUuid);
+            return null;
+        }
     }
 }

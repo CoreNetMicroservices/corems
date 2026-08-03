@@ -40,13 +40,26 @@ var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100");
 
+var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
+    .WithReference(corems)
+    .WaitFor(corems)
+    .WaitFor(minio)
+    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
+    .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
+    .WithEnvironment("Storage__Endpoint", minio.GetEndpoint("api"))
+    .WithEnvironment("Storage__AccessKey", minioAccessKey)
+    .WithEnvironment("Storage__SecretKey", minioSecretKey)
+    .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
+
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
     .WithReference(corems)
     .WithReference(rabbitmq)
     .WithReference(templateMs)
+    .WithReference(documentMs)
     .WaitFor(corems)
     .WaitFor(rabbitmq)
     .WaitFor(templateMs)
+    .WaitFor(documentMs)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Queue__Enabled", "true")
@@ -71,17 +84,6 @@ var userMs = builder.AddProject<Projects.CoreMs_UserMs_Api>("user-ms")
     .WithEnvironment("SocialAuth__GitHub__ClientSecret", userMs_["GitHubClientSecret"] ?? "")
     .WithEnvironment("SocialAuth__LinkedIn__ClientId", userMs_["LinkedInClientId"] ?? "")
     .WithEnvironment("SocialAuth__LinkedIn__ClientSecret", userMs_["LinkedInClientSecret"] ?? "");
-
-var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
-    .WithReference(corems)
-    .WaitFor(corems)
-    .WaitFor(minio)
-    .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
-    .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
-    .WithEnvironment("Storage__Endpoint", minio.GetEndpoint("api"))
-    .WithEnvironment("Storage__AccessKey", minioAccessKey)
-    .WithEnvironment("Storage__SecretKey", minioSecretKey)
-    .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
 
 var translationMs = builder.AddProject<Projects.CoreMs_TranslationMs_Api>("translation-ms")
     .WithReference(corems)

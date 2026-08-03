@@ -15,4 +15,5 @@ public static class DocumentServiceErrors
     public static readonly ErrorInfo TokenRevoked = new("document.token_revoked", 401, "Document access token has been revoked");
     public static readonly ErrorInfo StorageError = new("document.storage_error", 500, "File storage operation failed");
     public static readonly ErrorInfo DocumentAlreadyDeleted = new("document.already_deleted", 400, "Document is already deleted");
+    public static readonly ErrorInfo GenerationFailed = new("document.generation_failed", 500, "Document generation from template failed");
 }

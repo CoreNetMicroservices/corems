@@ -42,8 +42,10 @@ var templateMs = builder.AddProject<Projects.CoreMs_TemplateMs_Api>("template-ms
 
 var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms")
     .WithReference(corems)
+    .WithReference(templateMs)
     .WaitFor(corems)
     .WaitFor(minio)
+    .WaitFor(templateMs)
     .WithEnvironment("Jwt__SecretKey", common["JwtSecretKey"] ?? "")
     .WithEnvironment("Jwt__Issuer", "http://localhost:5100")
     .WithEnvironment("Storage__Endpoint", minio.GetEndpoint("api"))

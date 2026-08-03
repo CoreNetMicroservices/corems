@@ -4,6 +4,7 @@ using CoreMs.DocumentMs.Core.Configuration;
 using CoreMs.DocumentMs.Core.Services;
 using CoreMs.DocumentMs.Infrastructure.Data;
 using CoreMs.ServiceDefaults;
+using CoreMs.TemplateMs.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.AddCoreMsModules(typeof(DocumentService).Assembly, typeof(Program).Assem
 
 builder.AddCoreMsOptions<StorageOptions>();
 builder.AddCoreMsOptions<DocumentOptions>();
+builder.AddTemplateMsClient();
 
 builder.Services.AddHostedService<BucketInitializationService>();
 

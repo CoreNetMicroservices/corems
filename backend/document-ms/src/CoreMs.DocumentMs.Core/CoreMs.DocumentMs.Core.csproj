@@ -10,10 +10,12 @@
 
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
+    <ProjectReference Include="$(SolutionRoot)template-ms\src\CoreMs.TemplateMs.Client\CoreMs.TemplateMs.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.Playwright" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>
 

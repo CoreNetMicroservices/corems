@@ -1,4 +1,6 @@
+using CoreMs.Common.Security;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace CoreMs.Common.Http;
@@ -19,8 +21,7 @@ public static class HttpClientExtensions
         this IHostApplicationBuilder builder,
         string serviceName) where TClient : class
     {
-        builder.Services.AddScoped<ServiceCallContext>();
-        builder.Services.AddScoped<ServiceAuthDelegatingHandler>();
+        RegisterSharedDependencies(builder.Services, builder.Configuration);
 
         builder.Services.AddHttpClient<TClient>(client =>
             {
@@ -56,5 +57,15 @@ public static class HttpClientExtensions
                     new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             })
             .AddHttpMessageHandler<ServiceAuthDelegatingHandler>();
+    }
+
+    private static void RegisterSharedDependencies(IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration)
+    {
+        services.AddScoped<ServiceCallContext>();
+        services.AddScoped<ServiceAuthDelegatingHandler>();
+
+        // Ensure TokenProvider is registered (idempotent — Configure + AddSingleton are safe to call multiple times)
+        services.Configure<TokenProviderOptions>(configuration.GetSection(TokenProviderOptions.SectionName));
+        services.TryAddSingleton<TokenProvider>();
     }
 }

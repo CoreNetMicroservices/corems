@@ -327,40 +327,57 @@ public class SeedDataService
         Name = "Invoice Document",
         Description = "Invoice template for billing",
         Content = """
-            <html><head><meta charset="UTF-8">{{> corems-styles}}</head><body>
-            <div class="email-container">
-                <div class="email-header"><h1>Invoice #{{invoiceNumber}}</h1></div>
-                <div class="email-content">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
+            <html><head><meta charset="UTF-8">
+            <style>
+                body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color: #333; }
+                .doc-container { width: 100%; padding: 0; }
+                .doc-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 40px; text-align: center; }
+                .doc-header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+                .doc-content { padding: 40px; }
+                .doc-footer { padding: 20px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af; }
+                .info-row { display: flex; justify-content: space-between; margin-bottom: 32px; font-size: 15px; }
+                .info-block { background-color: #eff6ff; border-left: 4px solid #667eea; padding: 16px; margin-bottom: 32px; border-radius: 4px; }
+                table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+                th { padding: 14px 16px; text-align: left; font-size: 13px; font-weight: 600; border-bottom: 2px solid #667eea; background-color: #f9fafb; }
+                th:last-child { text-align: right; }
+                td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+                td:last-child { text-align: right; }
+                .total-row { background-color: #f3f4f6; font-weight: 700; font-size: 15px; }
+                .notes { font-size: 13px; color: #6b7280; margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 4px; }
+            </style></head><body>
+            <div class="doc-container">
+                <div class="doc-header"><h1>Invoice #{{invoiceNumber}}</h1></div>
+                <div class="doc-content">
+                    <div class="info-row">
                         <div><strong>Date:</strong> {{issueDate}}</div>
                         <div><strong>Due:</strong> {{dueDate}}</div>
                     </div>
-                    <div class="box-info">
+                    <div class="info-block">
                         <strong>Bill To:</strong><br>{{customerName}}<br>{{customerEmail}}
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+                    <table>
                         <thead>
-                            <tr style="border-bottom: 2px solid #667eea;">
-                                <th style="padding: 12px; text-align: left;">Description</th>
-                                <th style="padding: 12px; text-align: right;">Amount</th>
+                            <tr>
+                                <th>Description</th>
+                                <th>Amount</th>
                             </tr>
                         </thead>
                         <tbody>
                             {{#each items}}
-                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td style="padding: 12px;">{{this.description}}</td>
-                                <td style="padding: 12px; text-align: right;">{{this.amount}}</td>
+                            <tr>
+                                <td>{{this.description}}</td>
+                                <td>{{this.amount}}</td>
                             </tr>
                             {{/each}}
-                            <tr style="background-color: #f9fafb; font-weight: 600;">
-                                <td style="padding: 12px;">Total</td>
-                                <td style="padding: 12px; text-align: right;">{{currency}} {{totalAmount}}</td>
+                            <tr class="total-row">
+                                <td>Total</td>
+                                <td>{{currency}} {{totalAmount}}</td>
                             </tr>
                         </tbody>
                     </table>
-                    {{#if notes}}<p style="font-size: 13px; color: #6b7280;">{{notes}}</p>{{/if}}
+                    {{#if notes}}<div class="notes">{{notes}}</div>{{/if}}
                 </div>
-                <div class="email-footer"><p>Thank you for your business.</p></div>
+                <div class="doc-footer">Thank you for your business.</div>
             </div></body></html>
             """,
         Category = "DOCUMENT",

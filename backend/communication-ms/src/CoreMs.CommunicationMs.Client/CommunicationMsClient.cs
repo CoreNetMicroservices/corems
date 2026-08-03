@@ -4,52 +4,48 @@ namespace CoreMs.CommunicationMs.Client;
 
 /// <summary>
 /// Typed HTTP client for calling communication-ms endpoints.
-/// Registered via: builder.Services.AddCommunicationMsClient(baseUrl);
-///
 /// Automatically forwards JWT and correlation ID via ServiceAuthDelegatingHandler.
 /// </summary>
-public class CommunicationMsClient
+public class CommunicationMsClient(HttpClient http)
 {
-    private readonly HttpClient _http;
-
-    public CommunicationMsClient(HttpClient http)
-    {
-        _http = http;
-    }
-
     public async Task<HttpResponseMessage> SendEmailNotificationAsync(
-        string recipient, string subject, string body,
+        string recipient, string subject, string? body = null,
         string emailType = "html", string? sender = null, string? senderName = null,
+        TemplatePayload? template = null,
         CancellationToken ct = default)
     {
-        return await _http.PostAsJsonAsync("/api/notifications/email", new
+        return await http.PostAsJsonAsync("/api/notifications/email", new
         {
             subject,
             recipient,
             body,
             emailType,
             sender,
-            senderName
+            senderName,
+            template
         }, ct);
     }
 
     public async Task<HttpResponseMessage> SendSmsNotificationAsync(
-        string phoneNumber, string message,
+        string phoneNumber, string? message = null,
+        TemplatePayload? template = null,
         CancellationToken ct = default)
     {
-        return await _http.PostAsJsonAsync("/api/notifications/sms", new
+        return await http.PostAsJsonAsync("/api/notifications/sms", new
         {
             phoneNumber,
-            message
+            message,
+            template
         }, ct);
     }
 
     public async Task<HttpResponseMessage> SendEmailMessageAsync(
-        Guid userId, string recipient, string subject, string body,
+        Guid userId, string recipient, string subject, string? body = null,
         string emailType = "html", string? sender = null, string? senderName = null,
+        TemplatePayload? template = null,
         CancellationToken ct = default)
     {
-        return await _http.PostAsJsonAsync("/api/messages/email", new
+        return await http.PostAsJsonAsync("/api/messages/email", new
         {
             userId,
             subject,
@@ -57,19 +53,32 @@ public class CommunicationMsClient
             body,
             emailType,
             sender,
-            senderName
+            senderName,
+            template
         }, ct);
     }
 
     public async Task<HttpResponseMessage> SendSmsMessageAsync(
-        Guid userId, string phoneNumber, string message,
+        Guid userId, string phoneNumber, string? message = null,
+        TemplatePayload? template = null,
         CancellationToken ct = default)
     {
-        return await _http.PostAsJsonAsync("/api/messages/sms", new
+        return await http.PostAsJsonAsync("/api/messages/sms", new
         {
             userId,
             phoneNumber,
-            message
+            message,
+            template
         }, ct);
     }
+}
+
+/// <summary>
+/// Template reference payload for communication-ms.
+/// </summary>
+public record TemplatePayload
+{
+    public required string TemplateId { get; init; }
+    public Dictionary<string, object>? Params { get; init; }
+    public string? Language { get; init; }
 }

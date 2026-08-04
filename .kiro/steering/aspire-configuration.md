@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "backend/aspire/**"
+---
+
 # Aspire Configuration Guide
 
 ## Overview

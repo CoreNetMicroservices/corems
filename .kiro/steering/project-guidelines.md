@@ -1,5 +1,6 @@
 ---
-inclusion: always
+inclusion: fileMatch
+fileMatchPattern: "backend/**"
 ---
 
 # Core Microservices (.NET) - Project Guidelines

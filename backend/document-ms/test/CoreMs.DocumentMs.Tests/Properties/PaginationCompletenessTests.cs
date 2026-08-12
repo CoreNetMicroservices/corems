@@ -31,7 +31,7 @@ public class PaginationCompletenessTests
     private readonly DocumentRepository _documentRepository;
     private readonly DocumentAccessTokenRepository _documentAccessTokenRepository;
     private readonly IAmazonS3 _mockS3Client;
-    private readonly S3StorageService _storageService;
+    private readonly IStorageService _storageService;
     private readonly ICurrentUserService _currentUserService;
     private readonly DocumentService _sut;
     private readonly Guid _userId = Guid.NewGuid();
@@ -207,7 +207,7 @@ public class PaginationCompletenessTests
             PageSize = 15,
             Search = "invoice",
             Sort = "Name:asc",
-            Filters = ["Visibility:eq:Public"]
+            Filter = ["Visibility:eq:Public"]
         };
 
         await _sut.ListDocumentsAsync(parameters);
@@ -218,7 +218,7 @@ public class PaginationCompletenessTests
                 p.PageSize == 15 &&
                 p.Search == "invoice" &&
                 p.Sort == "Name:asc" &&
-                p.Filters != null && p.Filters.Contains("Visibility:eq:Public")),
+                p.Filter != null && p.Filter.Contains("Visibility:eq:Public")),
             Arg.Any<CancellationToken>());
     }
 

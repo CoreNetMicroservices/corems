@@ -194,7 +194,7 @@ public class SoftDeleteAndFilterPropertyTests
         {
             Page = 1,
             PageSize = 20,
-            Filters = [$"Category:eq:{input.FilterCategory}"]
+            Filter = [$"Category:eq:{input.FilterCategory}"]
         };
 
         // Act
@@ -211,7 +211,7 @@ public class SoftDeleteAndFilterPropertyTests
 
         // Assert: filter was passed to repository
         capturedParams.Should().NotBeNull();
-        capturedParams!.Filters.Should().Contain($"Category:eq:{input.FilterCategory}");
+        capturedParams!.Filter.Should().Contain($"Category:eq:{input.FilterCategory}");
     }
 
     [Property(MaxTest = 50, Arbitrary = [typeof(FilterCorrectnessArbitraries)])]
@@ -245,7 +245,7 @@ public class SoftDeleteAndFilterPropertyTests
         {
             Page = 1,
             PageSize = 20,
-            Filters = [$"Language:eq:{input.FilterLanguage}"]
+            Filter = [$"Language:eq:{input.FilterLanguage}"]
         };
 
         // Act
@@ -262,7 +262,7 @@ public class SoftDeleteAndFilterPropertyTests
 
         // Assert: filter was passed to repository
         capturedParams.Should().NotBeNull();
-        capturedParams!.Filters.Should().Contain($"Language:eq:{input.FilterLanguage}");
+        capturedParams!.Filter.Should().Contain($"Language:eq:{input.FilterLanguage}");
     }
 
     [Property(MaxTest = 50, Arbitrary = [typeof(FilterCorrectnessArbitraries)])]
@@ -286,7 +286,7 @@ public class SoftDeleteAndFilterPropertyTests
         {
             Page = 1,
             PageSize = 20,
-            Filters = ["Category:eq:NONEXISTENT"]
+            Filter = ["Category:eq:NONEXISTENT"]
         };
 
         // Act

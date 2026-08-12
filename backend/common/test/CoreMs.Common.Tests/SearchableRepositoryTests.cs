@@ -212,7 +212,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["IsActive:eq:true"],
+            Filter = ["IsActive:eq:true"],
             PageSize = 20
         });
 
@@ -225,7 +225,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["Provider:ne:google"],
+            Filter = ["Provider:ne:google"],
             PageSize = 20
         });
 
@@ -237,7 +237,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["Provider:like:goo"],
+            Filter = ["Provider:like:goo"],
             PageSize = 20
         });
 
@@ -249,7 +249,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["Provider:in:google,github"],
+            Filter = ["Provider:in:google,github"],
             PageSize = 20
         });
 
@@ -262,7 +262,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["CreatedAt:gte:2024-04-01"],
+            Filter = ["CreatedAt:gte:2024-04-01"],
             PageSize = 20
         });
 
@@ -275,7 +275,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["CreatedAt:lt:2024-03-01"],
+            Filter = ["CreatedAt:lt:2024-03-01"],
             PageSize = 20
         });
 
@@ -288,7 +288,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["IsActive:eq:true", "Provider:eq:google"],
+            Filter = ["IsActive:eq:true", "Provider:eq:google"],
             PageSize = 20
         });
 
@@ -301,7 +301,7 @@ public class SearchableRepositoryTests : IDisposable
     {
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
-            Filters = ["Name:eq:Alice Smith"],
+            Filter = ["Name:eq:Alice Smith"],
             PageSize = 20
         });
 
@@ -315,7 +315,7 @@ public class SearchableRepositoryTests : IDisposable
         var result = await _repository.GetPagedAsync(new QueryParameters
         {
             Search = "john",
-            Filters = ["IsActive:eq:true"],
+            Filter = ["IsActive:eq:true"],
             PageSize = 20
         });
 

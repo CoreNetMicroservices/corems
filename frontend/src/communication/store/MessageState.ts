@@ -55,7 +55,7 @@ export const useMessagesState = () => {
     documentUuids?: string[];
     template?: {
       templateId: string;
-      params?: Record<string, object>;
+      params?: Record<string, string>;
     };
   }) => {
     const response = await communicationMsApi.apiRequest<Message>(
@@ -72,7 +72,7 @@ export const useMessagesState = () => {
     message?: string;
     template?: {
       templateId: string;
-      params?: Record<string, object>;
+      params?: Record<string, string>;
     };
   }) => {
     const response = await communicationMsApi.apiRequest<Message>(

@@ -1,29 +1,74 @@
 name: Build and Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy-all:
+        description: 'Build and deploy all services (otherwise only changed)'
+        type: boolean
+        default: false
+      skip-build:
+        description: 'Skip Docker build, only run Terraform apply'
+        type: boolean
+        default: false
+
+permissions:
+  packages: read
+  contents: read
 
 env:
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
 jobs:
-  build-and-push:
+  detect-changes:
+    name: Detect Changed Services
     runs-on: ubuntu-latest
+    if: inputs.skip-build != true
+    outputs:
+      services: ${{ steps.filter.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine services to build
+        id: filter
+        run: |
+          ALL_SERVICES='["user-ms","communication-ms","document-ms","translation-ms","template-ms"]'
+
+          if [ "${{ inputs.deploy-all }}" == "true" ]; then
+            echo "Deploy all services"
+            echo "services=$ALL_SERVICES" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Compare with last deployed commit (or HEAD~1 as fallback)
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+          SERVICES="[]"
+
+          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+            if echo "$CHANGED_FILES" | grep -q "^backend/$svc/\|^backend/common/\|^backend/Directory"; then
+              SERVICES=$(echo "$SERVICES" | jq --arg s "$svc" '. + [$s]')
+            fi
+          done
+
+          # If nothing detected but workflow was triggered, build all
+          if [ "$SERVICES" == "[]" ]; then
+            echo "No specific changes detected, building all"
+            SERVICES="$ALL_SERVICES"
+          fi
+
+          echo "Services to build: $SERVICES"
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    if: inputs.skip-build != true
+    needs: detect-changes
     strategy:
       matrix:
-        service:
-          - name: user-ms
-            path: backend/user-ms
-          - name: communication-ms
-            path: backend/communication-ms
-          - name: document-ms
-            path: backend/document-ms
-          - name: translation-ms
-            path: backend/translation-ms
-          - name: template-ms
-            path: backend/template-ms
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,39 +84,65 @@ jobs:
       - name: Build and push image
         run: |
           docker build \
-            -t ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service.name }}:${{ github.sha }} \
-            -f ${{ matrix.service.path }}/Dockerfile \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:latest \
+            -f backend/${{ matrix.service }}/Dockerfile \
             --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
             backend/
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service.name }}:${{ github.sha }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:latest
 
   deploy-infrastructure:
+    name: Terraform Apply
     runs-on: ubuntu-latest
+    if: always() && !failure() && !cancelled()
     needs: build-and-push
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ env.AZURE_CREDENTIALS }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5"
+          terraform_wrapper: false
 
       - name: Terraform Init (Services)
         working-directory: infra/services
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="access_key=${{ secrets.TERRAFORM_STATE_ACCESS_KEY }}"
+
+      - name: Import existing resources
+        working-directory: infra/services
+        continue-on-error: true
+        run: |
+          SUB_ID="$ARM_SUBSCRIPTION_ID"
+          RG="corems-prod-rg"
+
+          # Import container apps if they exist but aren't in state
+          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+            echo "Importing $svc..."
+            terraform import "azurerm_container_app.services[\"$svc\"]" \
+              "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/containerApps/$svc" || echo "Import of $svc skipped (already in state or doesn't exist)"
+          done
+
+          # Import environment and log analytics if needed
+          terraform import azurerm_log_analytics_workspace.main \
+            "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.OperationalInsights/workspaces/$RG-logs" || true
+          terraform import azurerm_container_app_environment.main \
+            "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/$RG-cae" || true
 
       - name: Terraform Apply (Services)
         working-directory: infra/services
         run: |
           terraform apply -auto-approve \
-            -var='image_tags={"user-ms":"${{ github.sha }}","communication-ms":"${{ github.sha }}","document-ms":"${{ github.sha }}","translation-ms":"${{ github.sha }}","template-ms":"${{ github.sha }}"}'
+            -var='image_tags={"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'
 
   deploy-frontend:
+    name: Deploy Frontend
     runs-on: ubuntu-latest
     needs: deploy-infrastructure
     steps:

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
   </PropertyGroup>
 
   <ItemGroup Label="ASP.NET Core and Hosting">
@@ -99,12 +100,12 @@
   </ItemGroup>
 
   <ItemGroup Label="CoreMs Shared Libraries">
-    <PackageVersion Include="CoreMs.Common" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.Common.Testing" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.ServiceDefaults" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.CommunicationMs.Client" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.TemplateMs.Client" Version="1.0.0" />
-    <PackageVersion Include="CoreMs.DocumentMs.Client" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.Common" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.Common.Testing" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.ServiceDefaults" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.CommunicationMs.Client" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.TemplateMs.Client" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.DocumentMs.Client" Version="1.0.*" />
   </ItemGroup>
 
   <ItemGroup Label="Logging">

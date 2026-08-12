@@ -135,3 +135,82 @@ dotnet build                                          # Build solution
 ## Related
 
 Also available as a [Java/Spring Boot edition](https://github.com/CoreWebMicroservices/corems-project).
+
+## CI/CD
+
+### Pipelines
+
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| CI (`ci.yml`) | Push to main, PRs | Build, test, lint, publish NuGet packages |
+| Deploy (`deploy.yml`) | Manual | Build Docker images, Terraform apply, deploy frontend |
+
+### GitHub Secrets Required
+
+| Secret | Purpose |
+|--------|---------|
+| `AZURE_CREDENTIALS` | Service principal JSON for `azure/login` |
+| `AZURE_CLIENT_ID` | SP appId (for Terraform) |
+| `AZURE_CLIENT_SECRET` | SP password (for Terraform) |
+| `AZURE_TENANT_ID` | Tenant ID (for Terraform) |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID (for Terraform) |
+| `ACR_LOGIN_SERVER` | ACR hostname (e.g. `coremsprodrgacr.azurecr.io`) |
+| `TERRAFORM_STATE_ACCESS_KEY` | Storage account key for TF state |
+| `SWA_DEPLOYMENT_TOKEN` | Static Web App deployment token |
+
+### NuGet Packages (GitHub Packages)
+
+Shared libraries are auto-published to GitHub Packages when their source changes on `main`. To add a new package, just set `<IsPackable>true</IsPackable>` in the .csproj — CI auto-discovers it.
+
+Force publish all: run CI manually with `force-publish=true`.
+
+### Deploy Flags
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `deploy-all` | false | Build all 5 services (otherwise only changed) |
+| `skip-build` | false | Skip Docker build, only run Terraform apply |
+
+## Azure Infrastructure
+
+### Resources
+
+| Layer | Resources |
+|-------|-----------|
+| Bootstrap | TF state storage account |
+| Foundation | PostgreSQL, ACR, Service Bus, Blob Storage, Key Vault, DNS |
+| Services | Container Apps (×5), Static Web App, Log Analytics |
+
+### Deploy from Local
+
+```bash
+az login
+az acr login --name <acr-name>
+
+# Build and push one service
+docker build -t <acr>.azurecr.io/corems-user-ms:latest \
+  -f backend/user-ms/Dockerfile \
+  --build-arg GITHUB_TOKEN=<your-pat> \
+  backend/
+docker push <acr>.azurecr.io/corems-user-ms:latest
+
+# Apply infrastructure
+cd infra/services
+terraform init
+terraform apply
+```
+
+### Service Principal Setup (PowerShell — Git Bash mangles paths)
+
+```powershell
+az ad sp create-for-rbac --name "corems-github-deploy" --role Contributor --scopes "/subscriptions/<sub-id>"
+```
+
+Remap output keys for `AZURE_CREDENTIALS` secret:
+
+| CLI output | Secret JSON key |
+|------------|-----------------|
+| `appId` | `clientId` |
+| `password` | `clientSecret` |
+| `tenant` | `tenantId` |
+| *(add)* | `subscriptionId` |

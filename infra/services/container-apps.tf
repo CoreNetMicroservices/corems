@@ -60,7 +60,7 @@ resource "azurerm_container_app" "services" {
       # Database connection
       env {
         name  = "ConnectionStrings__DefaultConnection"
-        value = "Host=${local.foundation.postgres_fqdn};Port=5432;Database=${each.value.db_name};Username=${local.foundation.postgres_admin_username};Password=${local.foundation.postgres_admin_password};SSL Mode=Require"
+        value = "Host=${local.foundation.postgres_fqdn};Port=5432;Database=corems;Username=${local.foundation.postgres_admin_username};Password=${local.foundation.postgres_admin_password};SSL Mode=Require;Trust Server Certificate=true;Search Path=${each.value.db_name}"
       }
 
       # Service Bus

@@ -9,9 +9,8 @@ WORKDIR /src
 # Copy build configuration
 COPY Directory.Build.props Directory.Packages.props nuget.config ./
 
-# Write authenticated nuget.config for GitHub Packages
-RUN dotnet nuget add source "https://nuget.pkg.github.com/CoreNetMicroservices/index.json" \
-    --name github \
+# Authenticate to GitHub Packages
+RUN dotnet nuget update source github \
     --username "docker" \
     --password "$GITHUB_TOKEN" \
     --store-password-in-clear-text

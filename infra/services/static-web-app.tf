@@ -1,7 +1,7 @@
 resource "azurerm_static_web_app" "frontend" {
   name                = "${local.foundation.resource_group_name}-swa"
   resource_group_name = local.foundation.resource_group_name
-  location            = data.azurerm_resource_group.main.location
+  location            = "eastus2"
   sku_tier            = "Free"
   sku_size            = "Free"
 

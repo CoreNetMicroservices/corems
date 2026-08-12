@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      force-publish:
+        description: 'Force publish all shared NuGet packages'
+        type: boolean
+        default: false
+
+permissions:
+  packages: write
+  contents: read
 
 jobs:
   build-backend:
@@ -96,3 +106,70 @@ jobs:
         run: |
           terraform init -backend=false
           terraform validate
+
+  publish-packages:
+    name: Publish NuGet Packages
+    runs-on: ubuntu-latest
+    needs: build-backend
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.force-publish)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Detect changed packages
+        id: changes
+        run: |
+          # Find all packable projects (single line, space-separated)
+          PACKABLE=$(grep -rl "<IsPackable>true</IsPackable>" backend/ --include="*.csproj" | sort | tr '\n' ' ' | xargs)
+          echo "Packable projects: $PACKABLE"
+
+          if [ "${{ inputs.force-publish }}" == "true" ]; then
+            echo "Force publish: all packable projects"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "projects=$PACKABLE" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          PROJECTS=""
+
+          for csproj in $PACKABLE; do
+            PROJECT_DIR=$(dirname "$csproj")/
+            if echo "$CHANGED_FILES" | grep -q "^$PROJECT_DIR"; then
+              PROJECTS="$PROJECTS $csproj"
+            fi
+          done
+
+          PROJECTS=$(echo "$PROJECTS" | xargs)
+          if [ -z "$PROJECTS" ]; then
+            echo "No shared library changes detected"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changed projects: $PROJECTS"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pack changed packages
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          for project in ${{ steps.changes.outputs.projects }}; do
+            echo "Packing $project..."
+            dotnet pack "$project" -c Release /p:Version=1.0.${{ github.run_number }} -o ./nupkgs
+          done
+
+      - name: Push to GitHub Packages
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          dotnet nuget push "./nupkgs/*.nupkg" \
+            --source https://nuget.pkg.github.com/CoreNetMicroservices/index.json \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate

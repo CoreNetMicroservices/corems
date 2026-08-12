@@ -58,6 +58,53 @@ az provider register --namespace Microsoft.OperationalInsights
 az provider register --namespace Microsoft.DBforPostgreSQL
 ```
 
+## GitHub Actions Setup
+
+### Required Secrets
+
+| Secret | Value | Purpose |
+|--------|-------|---------|
+| `AZURE_CREDENTIALS` | Service principal JSON (see below) | Azure login in workflows |
+| `ACR_LOGIN_SERVER` | e.g. `coremsprod.azurecr.io` | Docker image push target |
+| `SWA_DEPLOYMENT_TOKEN` | Static Web App token | Frontend deployment |
+
+### Creating the Service Principal
+
+> **Windows (Git Bash) note**: Git Bash converts `/subscriptions/...` to a Windows path. Use PowerShell or prefix with `//`.
+
+**PowerShell:**
+```powershell
+az ad sp create-for-rbac --name "corems-github-deploy" --role Contributor --scopes "/subscriptions/<subscription-id>"
+```
+
+**Git Bash (double slash workaround):**
+```bash
+az ad sp create-for-rbac --name "corems-github-deploy" --role Contributor --scopes "//subscriptions/<subscription-id>"
+```
+
+Get your subscription ID:
+```bash
+az account show --query id -o tsv
+```
+
+### Formatting the AZURE_CREDENTIALS Secret
+
+The CLI outputs keys like `appId`, `password`, `tenant`. The GitHub Action expects different key names. Remap them:
+
+| CLI output | Secret JSON key |
+|------------|-----------------|
+| `appId` | `clientId` |
+| `password` | `clientSecret` |
+| `tenant` | `tenantId` |
+| *(add manually)* | `subscriptionId` |
+
+Final secret value (one-line JSON):
+```json
+{"clientId":"<appId>","clientSecret":"<password>","tenantId":"<tenant>","subscriptionId":"<subscription-id>"}
+```
+
+Paste this as the `AZURE_CREDENTIALS` repository secret in GitHub (Settings → Secrets → Actions).
+
 ## Deployment
 
 ### Step 1: Bootstrap (one-time)

@@ -54,7 +54,7 @@ public class SeedIdempotencePropertyTests
                 if (countAfterFirst == null)
                 {
                     countAfterFirst = currentCount;
-                    countAfterFirst.Should().Be(6, "seed should create exactly 6 templates");
+                    countAfterFirst.Should().Be(9, "seed should create exactly 9 templates");
                 }
                 else
                 {
@@ -112,12 +112,15 @@ public class SeedIdempotencePropertyTests
 
             var templates = await context.Set<TemplateEntity>().ToListAsync();
 
-            templates.Should().HaveCount(6);
-            templates.Should().Contain(t => t.TemplateId == "welcome-email");
+            templates.Should().HaveCount(9);
+            templates.Should().Contain(t => t.TemplateId == "corems-styles");
             templates.Should().Contain(t => t.TemplateId == "email-verification");
+            templates.Should().Contain(t => t.TemplateId == "welcome-email");
             templates.Should().Contain(t => t.TemplateId == "password-reset");
-            templates.Should().Contain(t => t.TemplateId == "sms-welcome");
+            templates.Should().Contain(t => t.TemplateId == "password-changed");
+            templates.Should().Contain(t => t.TemplateId == "account-locked");
             templates.Should().Contain(t => t.TemplateId == "sms-verification");
+            templates.Should().Contain(t => t.TemplateId == "sms-login-code");
             templates.Should().Contain(t => t.TemplateId == "invoice-document");
         }
         finally

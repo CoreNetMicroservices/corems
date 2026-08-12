@@ -36,7 +36,8 @@ public class AdminAuthorizationPropertyTests
     #region Property 15: Admin Authorization Gate
 
     /// <summary>
-    /// Property 15: The UsersController class-level [Authorize] attribute requires USER_MS_ADMIN or SUPER_ADMIN.
+    /// Property 15: The UsersController class-level [Authorize] attribute requires USER_MS_ADMIN.
+    /// SUPER_ADMIN access is granted implicitly via CoreMsRolesAuthorizationHandler.
     /// Validates: Requirement 9.1
     /// </summary>
     [Property(MaxTest = 50, Arbitrary = [typeof(AdminAuthArbitraries)])]
@@ -52,7 +53,6 @@ public class AdminAuthorizationPropertyTests
 
         var roles = classAttr.Roles!.Split(',', StringSplitOptions.TrimEntries);
         Assert.Contains("USER_MS_ADMIN", roles);
-        Assert.Contains("SUPER_ADMIN", roles);
     }
 
     /// <summary>

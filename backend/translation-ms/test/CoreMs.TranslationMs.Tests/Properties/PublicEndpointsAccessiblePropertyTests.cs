@@ -23,7 +23,7 @@ public class PublicEndpointsAccessiblePropertyTests : IClassFixture<TranslationT
     [Property(MaxTest = 100, Arbitrary = [typeof(PublicEndpointArbitraries)])]
     public void PublicTranslationEndpoint_NoAuth_Returns200Or404(RealmLangInput input)
     {
-        var response = _client.GetAsync($"/api/translations/{input.Realm}/{input.Lang}").Result;
+        var response = _client.GetAsync($"/api/translation/{input.Realm}/{input.Lang}").Result;
 
         // Public endpoints must never return 401 or 403
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
@@ -35,7 +35,7 @@ public class PublicEndpointsAccessiblePropertyTests : IClassFixture<TranslationT
     [Property(MaxTest = 100, Arbitrary = [typeof(PublicEndpointArbitraries)])]
     public void PublicLanguagesEndpoint_NoAuth_Returns200(RealmLangInput input)
     {
-        var response = _client.GetAsync($"/api/translations/{input.Realm}/languages").Result;
+        var response = _client.GetAsync($"/api/languages/{input.Realm}").Result;
 
         // Public endpoints must never return 401 or 403
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);

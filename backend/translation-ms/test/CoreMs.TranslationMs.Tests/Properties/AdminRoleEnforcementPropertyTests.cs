@@ -27,11 +27,11 @@ public class AdminRoleEnforcementPropertyTests : IClassFixture<TranslationTestFa
 
     private static readonly (string Method, string Path)[] AdminEndpoints =
     [
-        ("GET", "/api/admin/translations/test-realm/en"),
-        ("GET", "/api/admin/translations/realms"),
-        ("POST", "/api/admin/translations/test-realm/en"),
-        ("PUT", "/api/admin/translations/test-realm/en"),
-        ("DELETE", "/api/admin/translations/test-realm/en"),
+        ("GET", "/api/admin/translation/test-realm/en"),
+        ("GET", "/api/admin/translation"),
+        ("POST", "/api/admin/translation/test-realm/en"),
+        ("PUT", "/api/admin/translation/test-realm/en"),
+        ("DELETE", "/api/admin/translation/test-realm/en"),
     ];
 
     [Fact]

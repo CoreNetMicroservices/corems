@@ -7,6 +7,8 @@ obj/
 *.user
 *.suo
 
+.local
+
 # User secrets
 secrets.json
 
@@ -35,3 +37,19 @@ coverage/
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

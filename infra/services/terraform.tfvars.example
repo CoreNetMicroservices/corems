@@ -1,0 +1,18 @@
+max_replicas = 5
+
+image_tags = {
+  user-ms          = "latest"
+  communication-ms = "latest"
+  document-ms      = "latest"
+  translation-ms   = "latest"
+  template-ms      = "latest"
+}
+
+custom_domains = {
+  frontend         = "core-microservices.com"
+  user-ms          = "user-api.core-microservices.com"
+  communication-ms = "communication-api.core-microservices.com"
+  document-ms      = "document-api.core-microservices.com"
+  translation-ms   = "translation-api.core-microservices.com"
+  template-ms      = "template-api.core-microservices.com"
+}

@@ -1,0 +1,10 @@
+resource_group_name     = "corems-prod-rg"
+location                = "northeurope"
+postgres_admin_username = "pgadmin"
+postgres_admin_password = "CHANGE_ME_STRONG_PASSWORD"
+dns_zone_domain         = "example.com"
+
+tags = {
+  environment = "production"
+  project     = "corems"
+}

@@ -5,7 +5,7 @@ import { useHookstate } from "@hookstate/core";
 import { useTranslation } from "react-i18next";
 import { DataTable, DataTableFilter } from "@/common/component/dataTable";
 import { useMessagesState } from "@/communication/store/MessageState";
-import { Message, EmailPayload } from "@/communication/model/Message";
+import { Message } from "@/communication/model/Message";
 import { useMessageState } from "@/common/utils/api/ApiResponseHandler";
 import { AlertMessage } from "@/common/component/ApiResponseAlert";
 import { searchUsers } from "@/user/utils/UserApi";

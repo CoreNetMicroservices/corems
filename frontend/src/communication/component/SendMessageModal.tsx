@@ -76,7 +76,7 @@ export const SendMessageModal: React.FC<SendMessageModalProps> = ({ show, onClos
   const buildTemplatePayload = () => {
     if (!useTemplate || !selectedTemplateId) return undefined;
     // Convert string params to object (numbers stay as strings for the API)
-    const params: Record<string, object> = {};
+    const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(templateParams)) {
       if (value) params[key] = value;
     }

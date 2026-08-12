@@ -19,6 +19,12 @@ builder.AddCoreMsOptions<StorageOptions>();
 builder.AddCoreMsOptions<DocumentOptions>();
 builder.AddTemplateMsClient();
 
+var storageOptions = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()!;
+if (storageOptions.UseAzureBlob)
+    builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
+else
+    builder.Services.AddScoped<IStorageService, S3StorageService>();
+
 builder.Services.AddHostedService<BucketInitializationService>();
 
 var app = builder.Build();

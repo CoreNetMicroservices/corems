@@ -22,7 +22,7 @@ namespace CoreMs.DocumentMs.Core.Services;
 public class DocumentService(
     DocumentRepository documentRepository,
     DocumentAccessTokenRepository documentAccessTokenRepository,
-    S3StorageService storageService,
+    IStorageService storageService,
     ICurrentUserService currentUserService,
     IOptions<DocumentOptions> documentOptions,
     IOptions<StorageOptions> storageOptions,
@@ -49,7 +49,7 @@ public class DocumentService(
             {
                 try
                 {
-                    await storageService.DeleteObjectAsync(existing.ObjectKey, ct);
+                    await storageService.DeleteAsync(existing.ObjectKey, ct);
                 }
                 catch (Exception ex)
                 {
@@ -64,7 +64,7 @@ public class DocumentService(
 
         try
         {
-            await storageService.UploadObjectAsync(fileStream, objectKey, contentType, size, ct);
+            await storageService.UploadAsync(fileStream, objectKey, contentType, size, ct);
         }
         catch (Exception ex)
         {
@@ -146,7 +146,7 @@ public class DocumentService(
 
         try
         {
-            var stream = await storageService.GetObjectStreamAsync(entity.ObjectKey, ct);
+            var stream = await storageService.DownloadAsync(entity.ObjectKey, ct);
             return (stream, entity.ContentType, entity.OriginalFilename);
         }
         catch (Exception ex)
@@ -285,7 +285,7 @@ public class DocumentService(
         {
             try
             {
-                await storageService.DeleteObjectAsync(entity.ObjectKey, ct);
+                await storageService.DeleteAsync(entity.ObjectKey, ct);
             }
             catch (Exception ex)
             {

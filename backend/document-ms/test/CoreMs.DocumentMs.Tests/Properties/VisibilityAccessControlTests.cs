@@ -26,7 +26,7 @@ public class VisibilityAccessControlTests
 {
     private readonly DocumentRepository _documentRepository;
     private readonly DocumentAccessTokenRepository _documentAccessTokenRepository;
-    private readonly S3StorageService _storageService;
+    private readonly IStorageService _storageService;
     private readonly ICurrentUserService _currentUserService;
     private readonly DocumentService _sut;
     private readonly Guid _ownerId = Guid.NewGuid();

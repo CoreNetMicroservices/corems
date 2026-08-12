@@ -35,7 +35,7 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task UploadObjectAsync_ShouldCallPutObjectAsync_WithCorrectParameters()
+    public async Task UploadAsync_ShouldCallPutObjectAsync_WithCorrectParameters()
     {
         var content = new byte[] { 1, 2, 3, 4, 5 };
         using var stream = new MemoryStream(content);
@@ -46,7 +46,7 @@ public class S3StorageServiceTests
         _mockS3Client.PutObjectAsync(Arg.Any<PutObjectRequest>(), Arg.Any<CancellationToken>())
             .Returns(new PutObjectResponse());
 
-        await _sut.UploadObjectAsync(stream, objectKey, contentType, size);
+        await _sut.UploadAsync(stream, objectKey, contentType, size);
 
         await _mockS3Client.Received(1).PutObjectAsync(
             Arg.Is<PutObjectRequest>(r =>
@@ -58,7 +58,7 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task GetObjectStreamAsync_ShouldCallGetObjectAsync_AndReturnResponseStream()
+    public async Task DownloadAsync_ShouldCallGetObjectAsync_AndReturnResponseStream()
     {
         var objectKey = "uploads/test-file.pdf";
         var expectedStream = new MemoryStream([10, 20, 30]);
@@ -71,7 +71,7 @@ public class S3StorageServiceTests
         _mockS3Client.GetObjectAsync(Arg.Any<GetObjectRequest>(), Arg.Any<CancellationToken>())
             .Returns(response);
 
-        var result = await _sut.GetObjectStreamAsync(objectKey);
+        var result = await _sut.DownloadAsync(objectKey);
 
         result.Should().BeSameAs(expectedStream);
         await _mockS3Client.Received(1).GetObjectAsync(
@@ -82,14 +82,14 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task DeleteObjectAsync_ShouldCallDeleteObjectAsync_WithCorrectParameters()
+    public async Task DeleteAsync_ShouldCallDeleteObjectAsync_WithCorrectParameters()
     {
         var objectKey = "uploads/test-file.pdf";
 
         _mockS3Client.DeleteObjectAsync(Arg.Any<DeleteObjectRequest>(), Arg.Any<CancellationToken>())
             .Returns(new DeleteObjectResponse());
 
-        await _sut.DeleteObjectAsync(objectKey);
+        await _sut.DeleteAsync(objectKey);
 
         await _mockS3Client.Received(1).DeleteObjectAsync(
             Arg.Is<DeleteObjectRequest>(r =>
@@ -99,14 +99,14 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task ObjectExistsAsync_ShouldReturnTrue_WhenObjectExists()
+    public async Task ExistsAsync_ShouldReturnTrue_WhenObjectExists()
     {
         var objectKey = "uploads/existing-file.pdf";
 
         _mockS3Client.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), Arg.Any<CancellationToken>())
             .Returns(new GetObjectMetadataResponse());
 
-        var result = await _sut.ObjectExistsAsync(objectKey);
+        var result = await _sut.ExistsAsync(objectKey);
 
         result.Should().BeTrue();
         await _mockS3Client.Received(1).GetObjectMetadataAsync(
@@ -117,7 +117,7 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task ObjectExistsAsync_ShouldReturnFalse_WhenNotFoundExceptionThrown()
+    public async Task ExistsAsync_ShouldReturnFalse_WhenNotFoundExceptionThrown()
     {
         var objectKey = "uploads/non-existent-file.pdf";
 
@@ -129,13 +129,13 @@ public class S3StorageServiceTests
         _mockS3Client.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(notFoundException);
 
-        var result = await _sut.ObjectExistsAsync(objectKey);
+        var result = await _sut.ExistsAsync(objectKey);
 
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ObjectExistsAsync_ShouldRethrow_WhenNonNotFoundExceptionThrown()
+    public async Task ExistsAsync_ShouldRethrow_WhenNonNotFoundExceptionThrown()
     {
         var objectKey = "uploads/some-file.pdf";
 
@@ -147,13 +147,13 @@ public class S3StorageServiceTests
         _mockS3Client.GetObjectMetadataAsync(Arg.Any<GetObjectMetadataRequest>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(serverException);
 
-        var act = () => _sut.ObjectExistsAsync(objectKey);
+        var act = async () => await _sut.ExistsAsync(objectKey);
 
         await act.Should().ThrowAsync<AmazonS3Exception>();
     }
 
     [Fact]
-    public async Task EnsureBucketExistsAsync_ShouldCreateBucket_WhenItDoesNotExist()
+    public async Task EnsureContainerExistsAsync_ShouldCreateBucket_WhenItDoesNotExist()
     {
         var listResponse = new ListBucketsResponse
         {
@@ -165,7 +165,7 @@ public class S3StorageServiceTests
         _mockS3Client.PutBucketAsync(Arg.Any<PutBucketRequest>(), Arg.Any<CancellationToken>())
             .Returns(new PutBucketResponse());
 
-        await _sut.EnsureBucketExistsAsync();
+        await _sut.EnsureContainerExistsAsync();
 
         await _mockS3Client.Received(1).PutBucketAsync(
             Arg.Is<PutBucketRequest>(r => r.BucketName == TestBucket),
@@ -173,7 +173,7 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task EnsureBucketExistsAsync_ShouldNotCreateBucket_WhenItAlreadyExists()
+    public async Task EnsureContainerExistsAsync_ShouldNotCreateBucket_WhenItAlreadyExists()
     {
         var listResponse = new ListBucketsResponse
         {
@@ -183,7 +183,7 @@ public class S3StorageServiceTests
         _mockS3Client.ListBucketsAsync(Arg.Any<CancellationToken>())
             .Returns(listResponse);
 
-        await _sut.EnsureBucketExistsAsync();
+        await _sut.EnsureContainerExistsAsync();
 
         await _mockS3Client.DidNotReceive().PutBucketAsync(
             Arg.Any<PutBucketRequest>(),
@@ -191,12 +191,12 @@ public class S3StorageServiceTests
     }
 
     [Fact]
-    public async Task EnsureBucketExistsAsync_ShouldRethrow_WhenListBucketsFails()
+    public async Task EnsureContainerExistsAsync_ShouldRethrow_WhenListBucketsFails()
     {
         _mockS3Client.ListBucketsAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new AmazonS3Exception("Connection refused"));
 
-        var act = () => _sut.EnsureBucketExistsAsync();
+        var act = async () => await _sut.EnsureContainerExistsAsync();
 
         await act.Should().ThrowAsync<AmazonS3Exception>();
     }

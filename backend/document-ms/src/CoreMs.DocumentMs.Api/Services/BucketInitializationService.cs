@@ -9,13 +9,13 @@ public class BucketInitializationService(IServiceScopeFactory scopeFactory, ILog
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var storageService = scope.ServiceProvider.GetRequiredService<S3StorageService>();
-            await storageService.EnsureBucketExistsAsync(cancellationToken);
-            logger.LogInformation("Bucket initialization completed successfully");
+            var storageService = scope.ServiceProvider.GetRequiredService<IStorageService>();
+            await storageService.EnsureContainerExistsAsync(cancellationToken);
+            logger.LogInformation("Storage container initialization completed successfully");
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex, "Failed to initialize storage bucket. Service cannot accept requests");
+            logger.LogCritical(ex, "Failed to initialize storage container. Service cannot accept requests");
             throw;
         }
     }

@@ -18,7 +18,7 @@ namespace CoreMs.DocumentMs.Core.Services;
 public class PublicDocumentService(
     DocumentRepository documentRepository,
     DocumentAccessTokenRepository documentAccessTokenRepository,
-    S3StorageService storageService,
+    IStorageService storageService,
     IOptions<DocumentOptions> documentOptions,
     ILogger<PublicDocumentService> logger)
 {
@@ -45,7 +45,7 @@ public class PublicDocumentService(
 
         try
         {
-            var stream = await storageService.GetObjectStreamAsync(entity.ObjectKey, ct);
+            var stream = await storageService.DownloadAsync(entity.ObjectKey, ct);
             return (stream, entity.ContentType, entity.OriginalFilename);
         }
         catch (Exception ex)
@@ -76,7 +76,7 @@ public class PublicDocumentService(
 
         try
         {
-            var stream = await storageService.GetObjectStreamAsync(entity.ObjectKey, ct);
+            var stream = await storageService.DownloadAsync(entity.ObjectKey, ct);
             return (stream, entity.ContentType, entity.OriginalFilename);
         }
         catch (Exception ex)

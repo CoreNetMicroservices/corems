@@ -30,7 +30,7 @@ public class TokenValidationConsistencyTests
 
     private readonly DocumentRepository _documentRepository;
     private readonly DocumentAccessTokenRepository _documentAccessTokenRepository;
-    private readonly S3StorageService _storageService;
+    private readonly IStorageService _storageService;
     private readonly PublicDocumentService _sut;
     private readonly Guid _documentUuid = Guid.NewGuid();
 

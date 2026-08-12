@@ -1,14 +1,12 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using CoreMs.Common.Extensions;
 using CoreMs.DocumentMs.Core.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace CoreMs.DocumentMs.Core.Services;
 
-[Service]
-public class S3StorageService
+public class S3StorageService : IStorageService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly StorageOptions _options;
@@ -35,7 +33,7 @@ public class S3StorageService
         _logger = logger;
     }
 
-    public async Task UploadObjectAsync(Stream stream, string objectKey, string contentType, long size, CancellationToken ct = default)
+    public async Task UploadAsync(Stream stream, string objectKey, string contentType, long size, CancellationToken ct = default)
     {
         var request = new PutObjectRequest
         {
@@ -48,7 +46,7 @@ public class S3StorageService
         await _s3Client.PutObjectAsync(request, ct);
     }
 
-    public async Task<Stream> GetObjectStreamAsync(string objectKey, CancellationToken ct = default)
+    public async Task<Stream> DownloadAsync(string objectKey, CancellationToken ct = default)
     {
         var request = new GetObjectRequest
         {
@@ -60,7 +58,7 @@ public class S3StorageService
         return response.ResponseStream;
     }
 
-    public async Task DeleteObjectAsync(string objectKey, CancellationToken ct = default)
+    public async Task DeleteAsync(string objectKey, CancellationToken ct = default)
     {
         var request = new DeleteObjectRequest
         {
@@ -71,7 +69,7 @@ public class S3StorageService
         await _s3Client.DeleteObjectAsync(request, ct);
     }
 
-    public async Task<bool> ObjectExistsAsync(string objectKey, CancellationToken ct = default)
+    public async Task<bool> ExistsAsync(string objectKey, CancellationToken ct = default)
     {
         try
         {
@@ -90,7 +88,7 @@ public class S3StorageService
         }
     }
 
-    public async Task EnsureBucketExistsAsync(CancellationToken ct = default)
+    public async Task EnsureContainerExistsAsync(CancellationToken ct = default)
     {
         try
         {

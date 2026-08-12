@@ -27,7 +27,7 @@ public class DuplicateDetectionTests
     private readonly DocumentRepository _documentRepository;
     private readonly DocumentAccessTokenRepository _documentAccessTokenRepository;
     private readonly IAmazonS3 _mockS3Client;
-    private readonly S3StorageService _storageService;
+    private readonly IStorageService _storageService;
     private readonly ICurrentUserService _currentUserService;
     private readonly DocumentService _sut;
     private readonly Guid _userId = Guid.NewGuid();

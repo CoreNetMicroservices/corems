@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>CoreMs.Common.Testing</RootNamespace>
+    <IsTestProject>false</IsTestProject>
     <IsPackable>true</IsPackable>
     <PackageId>CoreMs.Common.Testing</PackageId>
     <Description>Integration test infrastructure for CoreMS microservices</Description>

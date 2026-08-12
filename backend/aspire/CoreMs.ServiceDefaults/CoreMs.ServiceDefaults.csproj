@@ -1,7 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <RootNamespace>CoreMs.ServiceDefaults</RootNamespace>
     <IsAspireSharedProject>true</IsAspireSharedProject>
+    <IsPackable>true</IsPackable>
+    <PackageId>CoreMs.ServiceDefaults</PackageId>
+    <Description>Service defaults configuration for CoreMS microservices</Description>
+    <Authors>CoreNetMicroservices</Authors>
+    <RepositoryUrl>https://github.com/CoreNetMicroservices/corems</RepositoryUrl>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">0</VersionSuffix>
+    <Version>1.0.$(VersionSuffix)</Version>
     <NoWarn>$(NoWarn);NU1902;NU1903;NU1904</NoWarn>
   </PropertyGroup>
 

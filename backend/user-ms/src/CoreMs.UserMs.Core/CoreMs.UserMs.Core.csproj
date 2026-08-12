@@ -4,9 +4,16 @@
     <RootNamespace>CoreMs.UserMs.Core</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup>
+  <!-- Local development: ProjectReference (default) -->
+  <ItemGroup Condition="'$(UsePackageReferences)' != 'true'">
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
     <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Client\CoreMs.CommunicationMs.Client.csproj" />
+  </ItemGroup>
+
+  <!-- Docker/CI builds: PackageReference -->
+  <ItemGroup Condition="'$(UsePackageReferences)' == 'true'">
+    <PackageReference Include="CoreMs.Common" />
+    <PackageReference Include="CoreMs.CommunicationMs.Client" />
   </ItemGroup>
 
   <ItemGroup>

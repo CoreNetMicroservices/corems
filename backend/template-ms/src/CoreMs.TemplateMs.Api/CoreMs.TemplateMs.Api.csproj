@@ -7,7 +7,16 @@
   <ItemGroup>
     <ProjectReference Include="..\CoreMs.TemplateMs.Core\CoreMs.TemplateMs.Core.csproj" />
     <ProjectReference Include="..\CoreMs.TemplateMs.Infrastructure\CoreMs.TemplateMs.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Local development: ProjectReference (default) -->
+  <ItemGroup Condition="'$(UsePackageReferences)' != 'true'">
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <!-- Docker/CI builds: PackageReference -->
+  <ItemGroup Condition="'$(UsePackageReferences)' == 'true'">
+    <PackageReference Include="CoreMs.ServiceDefaults" />
   </ItemGroup>
 
 </Project>

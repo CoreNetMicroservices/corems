@@ -8,8 +8,18 @@
   <ItemGroup>
     <ProjectReference Include="..\CoreMs.UserMs.Core\CoreMs.UserMs.Core.csproj" />
     <ProjectReference Include="..\CoreMs.UserMs.Infrastructure\CoreMs.UserMs.Infrastructure.csproj" />
-    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Client\CoreMs.CommunicationMs.Client.csproj" />
+  </ItemGroup>
+
+  <!-- Local development: ProjectReference (default) -->
+  <ItemGroup Condition="'$(UsePackageReferences)' != 'true'">
     <ProjectReference Include="$(SolutionRoot)aspire\CoreMs.ServiceDefaults\CoreMs.ServiceDefaults.csproj" />
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Client\CoreMs.CommunicationMs.Client.csproj" />
+  </ItemGroup>
+
+  <!-- Docker/CI builds: PackageReference -->
+  <ItemGroup Condition="'$(UsePackageReferences)' == 'true'">
+    <PackageReference Include="CoreMs.ServiceDefaults" />
+    <PackageReference Include="CoreMs.CommunicationMs.Client" />
   </ItemGroup>
 
 </Project>

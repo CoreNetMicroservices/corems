@@ -8,13 +8,21 @@
     <InternalsVisibleTo Include="CoreMs.DocumentMs.Tests" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- Local development: ProjectReference (default) -->
+  <ItemGroup Condition="'$(UsePackageReferences)' != 'true'">
     <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
     <ProjectReference Include="$(SolutionRoot)template-ms\src\CoreMs.TemplateMs.Client\CoreMs.TemplateMs.Client.csproj" />
   </ItemGroup>
 
+  <!-- Docker/CI builds: PackageReference -->
+  <ItemGroup Condition="'$(UsePackageReferences)' == 'true'">
+    <PackageReference Include="CoreMs.Common" />
+    <PackageReference Include="CoreMs.TemplateMs.Client" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Microsoft.Playwright" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>

@@ -42,6 +42,7 @@
 
   <ItemGroup Label="Cloud Storage">
     <PackageVersion Include="AWSSDK.S3" Version="3.7.400.2" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.22.2" />
   </ItemGroup>
 
   <ItemGroup Label="Security">
@@ -99,6 +100,11 @@
 
   <ItemGroup Label="CoreMs Shared Libraries">
     <PackageVersion Include="CoreMs.Common" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.Common.Testing" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.ServiceDefaults" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.CommunicationMs.Client" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.TemplateMs.Client" Version="1.0.0" />
+    <PackageVersion Include="CoreMs.DocumentMs.Client" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Logging">

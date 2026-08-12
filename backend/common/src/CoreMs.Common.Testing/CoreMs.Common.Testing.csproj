@@ -2,6 +2,13 @@
 
   <PropertyGroup>
     <RootNamespace>CoreMs.Common.Testing</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>CoreMs.Common.Testing</PackageId>
+    <Description>Integration test infrastructure for CoreMS microservices</Description>
+    <Authors>CoreNetMicroservices</Authors>
+    <RepositoryUrl>https://github.com/CoreNetMicroservices/corems</RepositoryUrl>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">0</VersionSuffix>
+    <Version>1.0.$(VersionSuffix)</Version>
   </PropertyGroup>
 
   <ItemGroup>

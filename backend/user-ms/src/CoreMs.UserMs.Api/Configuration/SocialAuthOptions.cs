@@ -1,9 +1,10 @@
 namespace CoreMs.UserMs.Api.Configuration;
 
+using CoreMs.Common.Extensions;
+
+[Options]
 public class SocialAuthOptions
 {
-    public const string SectionName = "SocialAuth";
-
     public GoogleOptions? Google { get; set; }
     public GitHubOptions? GitHub { get; set; }
     public LinkedInOptions? LinkedIn { get; set; }

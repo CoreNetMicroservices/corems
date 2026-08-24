@@ -69,8 +69,7 @@ app.Run();
 | `AddCoreMsHost()` | OpenTelemetry, health checks, service discovery |
 | `AddCoreMsApp(o => ...)` | CORS, controllers, Swagger, JWT, Serilog, exceptions |
 | `AddCoreMsDatabase<T>()` | Aspire Npgsql + CoreMsDbContext/DbContext aliases |
-| `AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository] + FluentValidation |
-| `AddCoreMsOptions<T>()` | Bind + validate options (DataAnnotations) |
+| `AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository], FluentValidation, and [Options] classes |
 | `AddCoreMsClient<T>(name)` | Service-to-service HTTP client with JWT + correlation ID forwarding |
 | `AddCoreMsMessaging(config)` | MassTransit/RabbitMQ with correlation ID propagation |
 | `RunCoreMsDatabaseAsync<T>()` | Auto-migrate + seed in dev, --migrate/--seed CLI |

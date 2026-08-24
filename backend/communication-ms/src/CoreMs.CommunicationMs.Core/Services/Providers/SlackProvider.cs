@@ -4,12 +4,13 @@ using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
+[Options("Slack", Validate = false)]
 public class SlackProviderOptions
 {
-    public const string SectionName = "Slack";
 
     public bool Enabled { get; set; }
     public string Token { get; set; } = string.Empty;

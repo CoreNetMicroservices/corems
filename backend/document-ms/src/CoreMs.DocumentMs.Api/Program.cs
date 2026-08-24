@@ -15,11 +15,9 @@ builder.AddCoreMsApp(o => o
 builder.AddCoreMsDatabase<DocumentMsDbContext>();
 builder.AddCoreMsModules(typeof(DocumentService).Assembly, typeof(Program).Assembly);
 
-builder.AddCoreMsOptions<StorageOptions>();
-builder.AddCoreMsOptions<DocumentOptions>();
 builder.AddTemplateMsClient();
 
-var storageOptions = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()!;
+var storageOptions = builder.Configuration.GetSection(CoreMsApp.SectionNameFor<StorageOptions>()).Get<StorageOptions>()!;
 if (storageOptions.UseAzureBlob)
     builder.Services.AddScoped<IStorageService, AzureBlobStorageService>();
 else

@@ -1,9 +1,10 @@
+using CoreMs.Common.Extensions;
+
 namespace CoreMs.Common.Security;
 
+[Options("Jwt")]
 public class TokenProviderOptions
 {
-    public const string SectionName = "Jwt";
-
     public SigningAlgorithm Algorithm { get; set; } = SigningAlgorithm.HS256;
 
     // Symmetric key (HS256)

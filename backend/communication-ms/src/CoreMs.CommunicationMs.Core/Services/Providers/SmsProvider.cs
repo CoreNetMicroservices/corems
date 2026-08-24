@@ -4,12 +4,13 @@ using CoreMs.CommunicationMs.Core.Enums;
 using CoreMs.CommunicationMs.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
+[Options("Sms", Validate = false)]
 public class SmsProviderOptions
 {
-    public const string SectionName = "Sms";
 
     public bool Enabled { get; set; }
     public string AccountSid { get; set; } = string.Empty;

@@ -10,9 +10,9 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Scans the given assemblies for classes marked with [Service] or [Repository]
-    /// and registers them in the DI container.
-    /// If the class implements an interface matching IClassName, it registers as that interface.
-    /// Otherwise it registers as itself (concrete type).
+    /// and registers each as its concrete type.
+    /// To register a class behind an interface (e.g. multiple implementations), register it
+    /// explicitly in Program.cs instead.
     /// </summary>
     public static IServiceCollection AddCoreMsServices(this IServiceCollection services, params Assembly[] assemblies)
     {
@@ -26,13 +26,7 @@ public static class ServiceCollectionExtensions
                 var lifetime = GetLifetime(type);
                 if (lifetime is null) continue;
 
-                var matchingInterface = type.GetInterfaces()
-                    .FirstOrDefault(i => !i.IsGenericType && i.Name == $"I{type.Name}");
-
-                if (matchingInterface != null)
-                    services.Add(new ServiceDescriptor(matchingInterface, type, lifetime.Value));
-                else
-                    services.Add(new ServiceDescriptor(type, type, lifetime.Value));
+                services.Add(new ServiceDescriptor(type, type, lifetime.Value));
             }
         }
 

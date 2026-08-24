@@ -1,3 +1,4 @@
+using CoreMs.Common.App;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +11,7 @@ public static class TokenProviderExtensions
         IConfiguration configuration)
     {
         services.Configure<TokenProviderOptions>(
-            configuration.GetSection(TokenProviderOptions.SectionName));
+            configuration.GetSection(CoreMsApp.SectionNameFor<TokenProviderOptions>()));
 
         services.AddSingleton<TokenProvider>();
 

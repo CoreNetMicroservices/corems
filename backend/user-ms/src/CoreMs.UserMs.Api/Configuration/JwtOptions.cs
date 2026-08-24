@@ -1,11 +1,11 @@
 namespace CoreMs.UserMs.Api.Configuration;
 
 using System.ComponentModel.DataAnnotations;
+using CoreMs.Common.Extensions;
 
+[Options]
 public class JwtOptions
 {
-    public const string SectionName = "Jwt";
-
     [Required]
     public string Algorithm { get; set; } = "HS256";
 

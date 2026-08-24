@@ -50,7 +50,7 @@ Single shared library containing all common infrastructure:
 
 ```
 CoreMs.Common/
-├── App/           # CoreMsApp (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions, UseCoreMsApp, RunCoreMsDatabaseAsync)
+├── App/           # CoreMsApp (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, SectionNameFor, UseCoreMsApp, RunCoreMsDatabaseAsync)
 ├── Data/          # CoreMsDbContext (abstract base)
 ├── Exceptions/    # ErrorInfo, Error, ErrorResponse, ServiceException, DefaultErrors
 ├── Extensions/    # [Service], [Repository] attributes, ServiceCollectionExtensions, ValidationExtensions
@@ -132,7 +132,7 @@ public class AuthService(UserRepository userRepository) { }
 public class UserRepository(DbContext context) : SearchableRepository<UserEntity>(context) { }
 ```
 
-No interfaces needed. If a class implements `IClassName`, it registers as the interface. Otherwise it registers as itself.
+No interfaces needed. `[Service]`/`[Repository]` classes are registered as their concrete type. To register a class behind an interface (e.g. multiple implementations like `IChannelProvider`, or an implementation chosen by config like `IStorageService`), register it explicitly in `Program.cs`.
 
 ## Code Style
 

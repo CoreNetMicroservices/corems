@@ -12,9 +12,9 @@ namespace CoreMs.UserMs.Core.Services;
 /// <summary>
 /// Configuration for OAuth2 providers, injected from appsettings.
 /// </summary>
+[Options("SocialAuth", Validate = false)]
 public class OAuth2ProviderOptions
 {
-    public const string SectionName = "SocialAuth";
 
     public ProviderConfig? Google { get; set; }
     public ProviderConfig? GitHub { get; set; }

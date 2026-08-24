@@ -135,7 +135,7 @@ Each service uses a three-layer structure: **Api**, **Core**, and **Infrastructu
 
 | Package | Purpose |
 |---------|---------|
-| `CoreMs.Common` | App (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions), Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler, AutoSaveChangesMiddleware), Extensions ([Service], [Repository]), Http (AddCoreMsClient), Messaging (AddCoreMsMessaging), Security (TokenProvider, ICurrentUserService, CoreMsRoles, JWT validation) |
+| `CoreMs.Common` | App (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions), Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler, AutoSaveChangesMiddleware), Extensions ([Service], [Repository], [Options]), Http (AddCoreMsClient), Messaging (AddCoreMsMessaging), Security (TokenProvider, ICurrentUserService, CoreMsRoles, JWT validation) |
 | `CoreMs.Common.Testing` | CoreMsTestFactory, CoreMsTestAuthHandler for integration tests |
 
 ## Auto-Registration Convention
@@ -154,7 +154,7 @@ public class UserService(UserRepository userRepository) { }
 public class UserRepository(DbContext context) : SearchableRepository<UserEntity>(context) { }
 ```
 
-If a class implements `IClassName`, it registers as the interface. Otherwise it registers as itself (concrete type).
+`[Service]`/`[Repository]` classes register as their concrete type. To register behind an interface (multiple implementations, or a config-selected implementation), register explicitly in `Program.cs`.
 
 ## Code Standards
 - **Three-layer architecture**: Api → Core → Infrastructure

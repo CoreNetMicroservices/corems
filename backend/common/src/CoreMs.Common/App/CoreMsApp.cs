@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using CoreMs.Common.Data;
 using CoreMs.Common.Extensions;
@@ -229,18 +230,20 @@ public static class CoreMsApp
     }
 
     /// <summary>
-    /// Registers CoreMS services/repositories by convention and FluentValidation validators in one call.
+    /// Registers CoreMS services/repositories by convention, FluentValidation validators, and
+    /// <c>[Options]</c>-marked configuration classes in one call.
     ///
     /// Replaces:
     ///   builder.Services.AddCoreMsServices(coreAssembly);
     ///   builder.Services.AddCoreMsValidation(apiAssembly);
+    ///   builder.AddCoreMsOptions(coreAssembly, apiAssembly);
     ///
     /// Usage:
     ///   builder.AddCoreMsModules(typeof(MyService).Assembly, typeof(Program).Assembly);
     /// </summary>
     /// <param name="builder">The host application builder.</param>
-    /// <param name="coreAssembly">Assembly containing [Service] and [Repository] classes (Core layer).</param>
-    /// <param name="apiAssembly">Assembly containing FluentValidation validators (Api layer).</param>
+    /// <param name="coreAssembly">Assembly containing [Service], [Repository], and [Options] classes (Core layer).</param>
+    /// <param name="apiAssembly">Assembly containing FluentValidation validators and [Options] classes (Api layer).</param>
     public static IHostApplicationBuilder AddCoreMsModules(
         this IHostApplicationBuilder builder,
         System.Reflection.Assembly coreAssembly,
@@ -248,6 +251,7 @@ public static class CoreMsApp
     {
         builder.Services.AddCoreMsServices(coreAssembly);
         builder.Services.AddCoreMsValidation(apiAssembly);
+        builder.AddCoreMsOptions(coreAssembly, apiAssembly);
         return builder;
     }
 
@@ -287,13 +291,81 @@ public static class CoreMsApp
         return builder;
     }
 
-    private static string GetSectionName<TOptions>()
+    /// <summary>
+    /// Scans the given assemblies for classes marked with <c>[Options]</c> and registers each with
+    /// configuration binding and startup validation. DataAnnotation validation is applied unless the
+    /// attribute sets <c>Validate = false</c>. Each type must declare a <c>public const string SectionName</c>.
+    ///
+    /// Usage:
+    ///   builder.AddCoreMsOptions(typeof(JwtOptions).Assembly);
+    /// </summary>
+    public static IHostApplicationBuilder AddCoreMsOptions(
+        this IHostApplicationBuilder builder,
+        params System.Reflection.Assembly[] assemblies)
     {
-        var field = typeof(TOptions).GetField("SectionName",
+        foreach (var assembly in assemblies)
+        {
+            var optionTypes = assembly.GetTypes()
+                .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericType: false })
+                .Select(t => (Type: t, Attr: t.GetCustomAttribute<OptionsAttribute>()))
+                .Where(x => x.Attr is not null);
+
+            foreach (var (type, attr) in optionTypes)
+                BindOptions(builder, type, ResolveSectionName(type, attr!.SectionName), attr.Validate);
+        }
+        return builder;
+    }
+
+    private static readonly System.Reflection.MethodInfo BindOptionsGeneric =
+        typeof(CoreMsApp).GetMethod(nameof(BindOptionsCore),
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
+    private static void BindOptions(IHostApplicationBuilder builder, Type optionType, string sectionName, bool validate)
+        => BindOptionsGeneric.MakeGenericMethod(optionType).Invoke(null, [builder, sectionName, validate]);
+
+    private static void BindOptionsCore<TOptions>(IHostApplicationBuilder builder, string sectionName, bool validate)
+        where TOptions : class
+    {
+        var optionsBuilder = builder.Services.AddOptions<TOptions>()
+            .Bind(builder.Configuration.GetSection(sectionName));
+        if (validate) optionsBuilder.ValidateDataAnnotations();
+        optionsBuilder.ValidateOnStart();
+    }
+
+    /// <summary>
+    /// Resolves the config section name for an options type using the same rules as
+    /// <c>[Options]</c> scanning: an <c>[Options("...")]</c> attribute value, then a
+    /// <c>public const string SectionName</c> field, then the class name minus a trailing
+    /// "Options"/"Option" suffix. Use at startup when the section is needed before the
+    /// options system is available (e.g. building a signing key or choosing an implementation).
+    /// </summary>
+    public static string SectionNameFor<TOptions>()
+        => ResolveSectionName(typeof(TOptions),
+            typeof(TOptions).GetCustomAttribute<OptionsAttribute>()?.SectionName);
+
+    private static string GetSectionName<TOptions>() => SectionNameFor<TOptions>();
+
+    /// <summary>
+    /// Resolves an options config section name: explicit attribute value, then a
+    /// <c>public const string SectionName</c> field, then the class name minus a trailing
+    /// "Options"/"Option" suffix.
+    /// </summary>
+    private static string ResolveSectionName(Type optionsType, string? attributeSectionName)
+    {
+        if (!string.IsNullOrWhiteSpace(attributeSectionName))
+            return attributeSectionName;
+
+        var field = optionsType.GetField("SectionName",
             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-        return field?.GetValue(null) as string
-            ?? throw new InvalidOperationException(
-                $"{typeof(TOptions).Name} must declare 'public const string SectionName'.");
+        if (field?.GetValue(null) is string constSection && !string.IsNullOrWhiteSpace(constSection))
+            return constSection;
+
+        var name = optionsType.Name;
+        if (name.EndsWith("Options", StringComparison.Ordinal))
+            return name[..^"Options".Length];
+        if (name.EndsWith("Option", StringComparison.Ordinal))
+            return name[..^"Option".Length];
+        return name;
     }
 
     /// <summary>

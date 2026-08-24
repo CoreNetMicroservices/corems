@@ -21,11 +21,6 @@ builder.AddTemplateMsClient();
 builder.AddDocumentMsClient();
 builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 
-builder.AddCoreMsOptionsLite<EmailProviderOptions>();
-builder.AddCoreMsOptionsLite<SmsProviderOptions>();
-builder.AddCoreMsOptionsLite<SlackProviderOptions>();
-builder.AddCoreMsOptionsLite<QueueOptions>();
-
 builder.Services.AddScoped<IChannelProvider, EmailProvider>();
 builder.Services.AddScoped<IChannelProvider, SmsProvider>();
 builder.Services.AddScoped<IChannelProvider, SlackProvider>();

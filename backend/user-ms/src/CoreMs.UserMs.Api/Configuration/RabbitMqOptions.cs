@@ -1,11 +1,11 @@
 namespace CoreMs.UserMs.Api.Configuration;
 
 using System.ComponentModel.DataAnnotations;
+using CoreMs.Common.Extensions;
 
+[Options]
 public class RabbitMqOptions
 {
-    public const string SectionName = "RabbitMq";
-
     [Required]
     public string Host { get; set; } = "localhost";
 

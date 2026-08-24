@@ -1,9 +1,10 @@
 namespace CoreMs.UserMs.Core.Configuration;
 
+using CoreMs.Common.Extensions;
+
+[Options("NotificationTemplates")]
 public class NotificationTemplateOptions
 {
-    public const string SectionName = "NotificationTemplates";
-
     public EmailTemplates Email { get; set; } = new();
     public SmsTemplates Sms { get; set; } = new();
 }

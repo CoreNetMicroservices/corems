@@ -7,7 +7,6 @@ using CoreMs.CommunicationMs.Client;
 using CoreMs.ServiceDefaults;
 using CoreMs.UserMs.Api.Configuration;
 using CoreMs.UserMs.Api.Services;
-using CoreMs.UserMs.Core.Configuration;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,17 +31,9 @@ builder.AddCommunicationMsClient();
 
 builder.Services.AddHttpClient();
 
-builder.AddCoreMsOptions<JwtOptions>();
-builder.AddCoreMsOptions<OAuth2ClientOptions>();
-builder.AddCoreMsOptions<SocialAuthOptions>();
-builder.AddCoreMsOptionsLite<OAuth2ProviderOptions>();
-builder.AddCoreMsOptions<RabbitMqOptions>();
-builder.AddCoreMsOptions<AppOptions>();
-builder.AddCoreMsOptions<NotificationTemplateOptions>();
-
 builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
+var jwtOptions = builder.Configuration.GetSection(CoreMsApp.SectionNameFor<JwtOptions>()).Get<JwtOptions>()!;
 var signingKey = string.IsNullOrEmpty(jwtOptions.SecretKey)
     ? new SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
     : new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));

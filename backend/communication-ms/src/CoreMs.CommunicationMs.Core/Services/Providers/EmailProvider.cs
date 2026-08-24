@@ -5,12 +5,13 @@ using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
+[Options("Mail", Validate = false)]
 public class EmailProviderOptions
 {
-    public const string SectionName = "Mail";
 
     public bool Enabled { get; set; }
     public string DefaultFrom { get; set; } = "noreply@corems.local";

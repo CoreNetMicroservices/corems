@@ -1,9 +1,10 @@
+using CoreMs.Common.Extensions;
+
 namespace CoreMs.DocumentMs.Core.Configuration;
 
+[Options]
 public class DocumentOptions
 {
-    public const string SectionName = "Document";
-
     public long MaxUploadSizeBytes { get; set; } = 10 * 1024 * 1024; // 10 MB
     public string[] AllowedExtensions { get; set; } = ["pdf", "png", "jpg", "jpeg", "gif", "doc", "docx", "xls", "xlsx", "txt", "csv", "zip"];
     public string BaseUrl { get; set; } = "http://localhost:5102";

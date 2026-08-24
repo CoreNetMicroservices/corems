@@ -1,3 +1,4 @@
+using CoreMs.Common.App;
 using CoreMs.Common.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -65,7 +66,7 @@ public static class HttpClientExtensions
         services.AddScoped<ServiceAuthDelegatingHandler>();
 
         // Ensure TokenProvider is registered (idempotent — Configure + AddSingleton are safe to call multiple times)
-        services.Configure<TokenProviderOptions>(configuration.GetSection(TokenProviderOptions.SectionName));
+        services.Configure<TokenProviderOptions>(configuration.GetSection(CoreMsApp.SectionNameFor<TokenProviderOptions>()));
         services.TryAddSingleton<TokenProvider>();
     }
 }

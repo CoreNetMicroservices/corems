@@ -145,13 +145,46 @@ app.Run();
 | `builder.AddCoreMsHost()` | Aspire: OpenTelemetry, health checks, service discovery |
 | `builder.AddCoreMsApp(o => ...)` | CORS, controllers, Swagger, JWT auth, exception handling |
 | `builder.AddCoreMsDatabase<T>()` | Aspire Npgsql DbContext + DI aliases |
-| `builder.AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository] + FluentValidation |
-| `builder.AddCoreMsOptions<T>()` | Bind options with DataAnnotation validation |
-| `builder.AddCoreMsOptionsLite<T>()` | Bind options without DataAnnotation validation |
+| `builder.AddCoreMsModules(core, api)` | Auto-register [Service]/[Repository], FluentValidation, and [Options] classes |
 | `builder.AddCoreMsClient<T>(name)` | Service-to-service typed HttpClient with JWT forwarding |
 | `app.RunCoreMsDatabaseAsync<T>()` | Dev auto-migrate + seed, CLI --migrate/--seed support |
 | `app.UseCoreMsApp()` | Middleware pipeline (Swagger, exceptions, CORS, auth) |
 | `app.MapCoreMsEndpoints()` | Health check endpoints (/health, /alive) |
+
+## Options Classes ([Options] attribute)
+
+Options are registered automatically by `AddCoreMsModules` via assembly scanning — no
+per-class registration in `Program.cs`. Mark the class with `[Options]`. This mirrors Spring's
+`@ConfigurationProperties` + `@ConfigurationPropertiesScan`.
+
+```csharp
+[Options]                          // section derived from class name, DataAnnotation validation
+public class RabbitMqOptions
+{
+    [Required] public string Host { get; set; } = "localhost";
+}
+```
+
+Section name resolution (in order):
+1. Explicit attribute value — `[Options("OAuth2Clients")]`
+2. A `public const string SectionName` field (legacy; not needed for new code)
+3. Class name minus a trailing `Options`/`Option` suffix — `RabbitMqOptions` -> `RabbitMq`
+
+Attribute forms:
+```csharp
+[Options]                          // derive section, validate
+[Options(Validate = false)]        // derive section, binding check only (no DataAnnotations)
+[Options("Mail")]                  // custom section, validate
+[Options("Sms", Validate = false)] // custom section, binding check only
+```
+
+Note: with a bare `[Options]`, the class name *is* the config section key. Renaming the class
+changes the bound section. Validated options (`[Required]` + `ValidateOnStart`) fail loudly at
+startup if the section goes missing; `Validate = false` options fall back to defaults silently.
+
+If a section name is needed at startup *before* the options system exists (e.g. building a
+signing key or choosing an implementation), use `CoreMsApp.SectionNameFor<TOptions>()` rather
+than a hardcoded string or const.
 
 ### CoreMsAppOptions fluent API
 

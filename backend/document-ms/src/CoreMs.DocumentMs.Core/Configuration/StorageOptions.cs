@@ -1,8 +1,10 @@
+using CoreMs.Common.Extensions;
+
 namespace CoreMs.DocumentMs.Core.Configuration;
 
+[Options]
 public class StorageOptions
 {
-    public const string SectionName = "Storage";
 
     // S3/MinIO settings (local dev)
     public string Endpoint { get; set; } = string.Empty;

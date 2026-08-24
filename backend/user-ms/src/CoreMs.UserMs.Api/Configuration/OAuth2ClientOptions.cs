@@ -1,9 +1,10 @@
 namespace CoreMs.UserMs.Api.Configuration;
 
+using CoreMs.Common.Extensions;
+
+[Options("OAuth2Clients")]
 public class OAuth2ClientOptions
 {
-    public const string SectionName = "OAuth2Clients";
-
     public List<ClientRegistration> Clients { get; set; } = new();
 }
 

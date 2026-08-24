@@ -1,11 +1,11 @@
 namespace CoreMs.UserMs.Core.Configuration;
 
 using System.ComponentModel.DataAnnotations;
+using CoreMs.Common.Extensions;
 
+[Options]
 public class AppOptions
 {
-    public const string SectionName = "App";
-
     [Required]
     public string FrontendBaseUrl { get; set; } = "http://localhost:8080";
 

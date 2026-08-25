@@ -48,6 +48,7 @@ public class UserService(UserRepository userRepository)
         }
 
         userRepository.Add(user);
+        await userRepository.SaveChangesAsync(ct);
         return user;
     }
 
@@ -82,6 +83,7 @@ public class UserService(UserRepository userRepository)
 
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
     }
 
     public async Task DeleteUserAsync(Guid uuid, CancellationToken ct = default)
@@ -90,6 +92,7 @@ public class UserService(UserRepository userRepository)
             ?? throw ServiceException.Of(UserErrors.UserNotFound, $"User with ID {uuid} not found");
 
         userRepository.Remove(user);
+        await userRepository.SaveChangesAsync(ct);
     }
 
     public async Task AdminChangePasswordAsync(Guid uuid, string newPassword, string confirmPassword, CancellationToken ct = default)
@@ -103,6 +106,7 @@ public class UserService(UserRepository userRepository)
         user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword, workFactor: 12);
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
     }
 
     public async Task AdminChangeEmailAsync(Guid uuid, string newEmail, CancellationToken ct = default)
@@ -114,5 +118,6 @@ public class UserService(UserRepository userRepository)
         user.EmailVerified = false;
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
     }
 }

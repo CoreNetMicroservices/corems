@@ -39,6 +39,7 @@ public class PasswordService(
             ExpiresAt = DateTime.UtcNow.Add(TokenExpiration)
         };
         actionTokenRepository.Add(actionToken);
+        await actionTokenRepository.SaveChangesAsync(ct);
 
         await notificationService.SendPasswordResetAsync(user, rawToken, ct);
     }
@@ -83,6 +84,8 @@ public class PasswordService(
         actionToken.Used = true;
         actionToken.UsedAt = DateTime.UtcNow;
         actionTokenRepository.Update(actionToken);
+
+        await userRepository.SaveChangesAsync(ct);
 
         await tokenService.RevokeAllUserTokensAsync(user.Id, ct);
     }

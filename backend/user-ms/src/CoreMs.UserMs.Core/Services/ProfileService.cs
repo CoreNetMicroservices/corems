@@ -33,6 +33,7 @@ public class ProfileService(UserRepository userRepository)
 
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
 
         return user;
     }
@@ -54,5 +55,6 @@ public class ProfileService(UserRepository userRepository)
         user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword, workFactor: 12);
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
     }
 }

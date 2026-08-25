@@ -55,6 +55,7 @@ public class OAuth2Service(
             IsUsed = false
         };
         authorizationCodeRepository.Add(authCode);
+        await authorizationCodeRepository.SaveChangesAsync(ct);
 
         var redirectUrl = $"{redirectUri}?code={code}";
         if (state is not null)
@@ -131,6 +132,7 @@ public class OAuth2Service(
             ?? throw ServiceException.Of(UserErrors.InvalidToken, "Invalid token");
 
         loginTokenRepository.Remove(loginToken);
+        await loginTokenRepository.SaveChangesAsync(ct);
     }
 
     private static string ComputeCodeChallenge(string codeVerifier, string? method)

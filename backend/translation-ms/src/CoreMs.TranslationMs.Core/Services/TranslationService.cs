@@ -79,6 +79,7 @@ public class TranslationService(
         };
 
         repository.Add(entity);
+        await repository.SaveChangesAsync(ct);
         return MapToDto(entity);
     }
 
@@ -93,6 +94,7 @@ public class TranslationService(
         entity.UpdatedBy = currentUserService.GetCurrentUserUuid();
 
         repository.Update(entity);
+        await repository.SaveChangesAsync(ct);
         return MapToDto(entity);
     }
 
@@ -103,6 +105,7 @@ public class TranslationService(
             ?? throw ServiceException.Of(TranslationServiceErrors.TranslationNotFound);
 
         repository.Remove(entity);
+        await repository.SaveChangesAsync(ct);
     }
 
     private static TranslationBundleDto MapToDto(TranslationBundleEntity entity) => new(

@@ -16,11 +16,4 @@ public class MessageRepository(DbContext context) : SearchableRepository<Message
         => await DbSet
             .Include(m => (m as EmailMessageEntity)!.Attachments)
             .FirstOrDefaultAsync(m => m.Uuid == uuid, ct);
-
-    /// <summary>
-    /// Explicitly persists changes. Use only outside the HTTP pipeline (e.g., MassTransit consumers)
-    /// where AutoSaveChangesMiddleware is not active.
-    /// </summary>
-    public async Task SaveAsync(CancellationToken ct = default)
-        => await Context.SaveChangesAsync(ct);
 }

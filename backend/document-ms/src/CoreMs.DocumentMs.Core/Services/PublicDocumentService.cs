@@ -62,6 +62,7 @@ public class PublicDocumentService(
         tokenEntity.AccessCount++;
         tokenEntity.LastAccessedAt = DateTime.UtcNow;
         documentAccessTokenRepository.Update(tokenEntity);
+        await documentAccessTokenRepository.SaveChangesAsync(ct);
 
         return DocumentService.MapToDto(entity);
     }
@@ -73,6 +74,7 @@ public class PublicDocumentService(
         tokenEntity.AccessCount++;
         tokenEntity.LastAccessedAt = DateTime.UtcNow;
         documentAccessTokenRepository.Update(tokenEntity);
+        await documentAccessTokenRepository.SaveChangesAsync(ct);
 
         try
         {

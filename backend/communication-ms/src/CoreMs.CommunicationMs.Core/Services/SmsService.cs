@@ -50,6 +50,8 @@ public class SmsService
         entity.Status = status;
         if (status == MessageStatus.Sent) entity.SentAt = DateTime.UtcNow;
 
+        await _messageRepository.SaveChangesAsync(ct);
+
         return new MessageResponse
         {
             Uuid = entity.Uuid,

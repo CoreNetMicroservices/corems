@@ -117,10 +117,13 @@ public abstract class CrudRepository<TEntity>(DbContext context)
     public virtual void Add(TEntity entity) => DbSet.Add(entity);
     public virtual void Update(TEntity entity) => DbSet.Update(entity);
     public virtual void Remove(TEntity entity) => DbSet.Remove(entity);
+
+    public virtual async Task<int> SaveChangesAsync(CancellationToken ct = default)
+        => await Context.SaveChangesAsync(ct);
 }
 ```
 
-`Add`, `Update`, `Remove` are **synchronous** — they only track changes in memory. Actual DB write happens via auto-save middleware.
+`Add`, `Update`, `Remove` are **synchronous** — they only track changes in memory. Call `SaveChangesAsync` to persist them (see "Persistence: Explicit SaveChangesAsync" below).
 
 ### SearchableRepository<T>
 
@@ -150,19 +153,36 @@ public class UserRepository(DbContext context) : SearchableRepository<UserEntity
 
 Property metadata is cached at construction time — no reflection at query time.
 
-## Auto-Save Middleware
+## Persistence: Explicit SaveChangesAsync
 
-`AutoSaveChangesMiddleware` calls `SaveChangesAsync()` at the end of every successful request (status < 400). Repositories never call `SaveChanges` themselves.
+There is **no auto-save middleware**. `Add`/`Update`/`Remove` only track changes in memory; a write reaches the database only when something calls `SaveChangesAsync`.
+
+`CrudRepository<T>` exposes the commit point, inherited by every repository:
 
 ```csharp
-// Registered in the middleware pipeline
-app.UseMiddleware<AutoSaveChangesMiddleware>();
+public virtual async Task<int> SaveChangesAsync(CancellationToken ct = default)
+    => await Context.SaveChangesAsync(ct);
 ```
 
-This means:
-- All changes in a request are flushed together (implicit unit of work)
-- If the request throws, nothing is saved (automatic rollback)
-- Repository methods just track changes — they don't persist
+Service methods call it explicitly after mutating:
+
+```csharp
+public async Task DeleteUserAsync(Guid uuid, CancellationToken ct = default)
+{
+    var user = await userRepository.GetByUuidAsync(uuid, ct)
+        ?? throw ServiceException.Of(UserErrors.UserNotFound, ...);
+
+    userRepository.Remove(user);
+    await userRepository.SaveChangesAsync(ct);
+}
+```
+
+Guidelines:
+- **The service method that owns the operation is responsible for the save.** Call `SaveChangesAsync` once, after all mutations, so a multi-step operation commits in a single EF transaction.
+- Since every repository shares the same `DbContext` per scope, one `SaveChangesAsync` flushes changes tracked through any repository in that scope.
+- `ExecuteDeleteAsync`/`ExecuteUpdateAsync` bulk helpers persist immediately and do **not** need a following save.
+- When a mutation is followed by an external side effect (sending an email, issuing a token), save **before** the side effect so the persisted state backs it.
+- The same pattern applies everywhere — HTTP requests, MassTransit consumers, background services, seeders. There is no longer a special "HTTP-only" persistence path.
 
 ## Query Parameters
 
@@ -195,7 +215,7 @@ Examples:
 
 1. **No EF attributes on entities** — Fluent API only
 2. **No base entity class** — entities are plain POCOs
-3. **No SaveChanges in repositories** — auto-save middleware handles it
+3. **Save explicitly** — call `repository.SaveChangesAsync(ct)` in the service method after mutating
 4. **Always accept CancellationToken** in async methods
 5. **Use `FirstOrDefaultAsync`** (not `SingleOrDefaultAsync`) for lookups
 6. **Use `AnyAsync`** for existence checks

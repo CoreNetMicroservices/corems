@@ -46,18 +46,11 @@ public class SocialAuthController(
         {
             var callbackUrl = $"{Request.Scheme}://{Request.Host}/oauth2/callback/{provider}";
             var info = await providerService.ExchangeCodeAsync(provider, code, callbackUrl, ct);
+
+            // HandleSocialLoginAsync persists the user (assigning user.Id);
+            // GenerateTokenResponseAsync persists the issued login token.
             var user = await socialAuthService.HandleSocialLoginAsync(provider, info, ct);
-
-            // Save user first so user.Id is assigned (needed for login_token FK)
-            var db = HttpContext.RequestServices.GetRequiredService<Microsoft.EntityFrameworkCore.DbContext>();
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("User saved: {UserId} {Email}", user.Id, user.Email);
-
             var tokenResponse = await tokenService.GenerateTokenResponseAsync(user, "openid profile email", null, ct);
-
-            // Save the login token to DB before redirecting
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("Login token saved for user {Email}, token length: {Len}", user.Email, tokenResponse.RefreshToken.Length);
 
             var separator = redirectUri.Contains('?') ? "&" : "?";
             return Redirect($"{redirectUri}{separator}refresh_token={tokenResponse.RefreshToken}");

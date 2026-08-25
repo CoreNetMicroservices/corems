@@ -61,11 +61,10 @@ public class RegistrationService(
         };
         actionTokenRepository.Add(actionToken);
 
-        await notificationService.SendEmailVerificationAsync(user, rawToken, ct);
-
+        string? phoneCode = null;
         if (user.PhoneNumber is not null)
         {
-            var phoneCode = tokenProvider.CreateActionToken(user.Uuid.ToString(), "phone_verification");
+            phoneCode = tokenProvider.CreateActionToken(user.Uuid.ToString(), "phone_verification");
             var phoneHash = ComputeSha256Hash(phoneCode);
             var phoneToken = new ActionTokenEntity
             {
@@ -76,9 +75,16 @@ public class RegistrationService(
                 ExpiresAt = DateTime.UtcNow.Add(TokenExpiration)
             };
             actionTokenRepository.Add(phoneToken);
-
-            await notificationService.SendPhoneVerificationAsync(user, phoneCode, ct);
         }
+
+        // Persist the user and verification tokens before sending notifications
+        // so the links in those messages point to durable records.
+        await userRepository.SaveChangesAsync(ct);
+
+        await notificationService.SendEmailVerificationAsync(user, rawToken, ct);
+
+        if (phoneCode is not null)
+            await notificationService.SendPhoneVerificationAsync(user, phoneCode, ct);
 
         return user;
     }
@@ -113,6 +119,8 @@ public class RegistrationService(
         actionToken.Used = true;
         actionToken.UsedAt = DateTime.UtcNow;
         actionTokenRepository.Update(actionToken);
+
+        await userRepository.SaveChangesAsync(ct);
     }
 
     public async Task VerifyPhoneAsync(string phoneNumber, string code, CancellationToken ct = default)
@@ -145,6 +153,8 @@ public class RegistrationService(
         actionToken.Used = true;
         actionToken.UsedAt = DateTime.UtcNow;
         actionTokenRepository.Update(actionToken);
+
+        await userRepository.SaveChangesAsync(ct);
     }
 
     public async Task ResendVerificationAsync(string email, string type, CancellationToken ct = default)
@@ -173,6 +183,7 @@ public class RegistrationService(
             ExpiresAt = DateTime.UtcNow.Add(TokenExpiration)
         };
         actionTokenRepository.Add(actionToken);
+        await actionTokenRepository.SaveChangesAsync(ct);
 
         if (actionType == ActionTokenType.EmailVerification)
             await notificationService.SendEmailVerificationAsync(user, rawToken, ct);

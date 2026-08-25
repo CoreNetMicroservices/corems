@@ -53,7 +53,7 @@ public class SendMessageConsumer(
             {
                 entity.Status = MessageStatus.Sent;
                 entity.SentAt = DateTime.UtcNow;
-                await messageRepository.SaveAsync(context.CancellationToken);
+                await messageRepository.SaveChangesAsync(context.CancellationToken);
             }
 
             logger.LogInformation("Message sent successfully: {MessageId}", command.MessageId);
@@ -66,7 +66,7 @@ public class SendMessageConsumer(
             {
                 entity.Status = MessageStatus.Failed;
                 entity.SentAt = DateTime.UtcNow;
-                await messageRepository.SaveAsync(context.CancellationToken);
+                await messageRepository.SaveChangesAsync(context.CancellationToken);
             }
 
             throw;

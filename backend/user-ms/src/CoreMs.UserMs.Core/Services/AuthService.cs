@@ -23,6 +23,7 @@ public class AuthService(UserRepository userRepository)
         user.LastLoginAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
         userRepository.Update(user);
+        await userRepository.SaveChangesAsync(ct);
 
         return user;
     }

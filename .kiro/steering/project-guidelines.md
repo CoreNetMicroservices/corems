@@ -135,7 +135,7 @@ Each service uses a three-layer structure: **Api**, **Core**, and **Infrastructu
 
 | Package | Purpose |
 |---------|---------|
-| `CoreMs.Common` | App (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions), Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler, AutoSaveChangesMiddleware), Extensions ([Service], [Repository], [Options]), Http (AddCoreMsClient), Messaging (AddCoreMsMessaging), Security (TokenProvider, ICurrentUserService, CoreMsRoles, JWT validation) |
+| `CoreMs.Common` | App (AddCoreMsApp, AddCoreMsDatabase, AddCoreMsModules, AddCoreMsOptions), Exceptions, Repository (CrudRepository, SearchableRepository, QueryParameters, PagedResult), Data (CoreMsDbContext), Middleware (GlobalExceptionHandler), Extensions ([Service], [Repository], [Options]), Http (AddCoreMsClient), Messaging (AddCoreMsMessaging), Security (TokenProvider, ICurrentUserService, CoreMsRoles, JWT validation) |
 | `CoreMs.Common.Testing` | CoreMsTestFactory, CoreMsTestAuthHandler for integration tests |
 
 ## Auto-Registration Convention
@@ -169,7 +169,7 @@ public class UserRepository(DbContext context) : SearchableRepository<UserEntity
 - **UUID for external IDs**: `Guid` type for public-facing identifiers
 - **Long for internal IDs**: `long` for primary keys (BIGSERIAL)
 - **Fluent API only**: No data annotations on entities
-- **Auto-save middleware**: Repositories never call SaveChanges
+- **Explicit persistence**: service methods call `repository.SaveChangesAsync(ct)` after mutations (no auto-save middleware)
 
 ## Testing Strategy
 

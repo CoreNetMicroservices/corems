@@ -93,6 +93,7 @@ public class DocumentService(
         };
 
         documentRepository.Add(entity);
+        await documentRepository.SaveChangesAsync(ct);
 
         return MapToDto(entity);
     }
@@ -265,6 +266,7 @@ public class DocumentService(
         entity.UpdatedAt = DateTime.UtcNow;
 
         documentRepository.Update(entity);
+        await documentRepository.SaveChangesAsync(ct);
 
         return MapToDto(entity);
     }
@@ -305,6 +307,8 @@ public class DocumentService(
 
             documentRepository.Update(entity);
         }
+
+        await documentRepository.SaveChangesAsync(ct);
     }
 
     internal static DocumentDto MapToDto(DocumentEntity entity) => new(
@@ -366,6 +370,7 @@ public class DocumentService(
         };
 
         documentAccessTokenRepository.Add(accessToken);
+        await documentAccessTokenRepository.SaveChangesAsync(ct);
 
         var url = $"{_documentOptions.BaseUrl}/api/public/documents/link/{token}";
 

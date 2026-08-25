@@ -33,7 +33,7 @@ public class TokenService
         _tokenProvider = tokenProvider;
     }
 
-    public Task<OAuth2TokenResponse> GenerateTokenResponseAsync(UserEntity user, string? scope, string? nonce, CancellationToken ct = default)
+    public async Task<OAuth2TokenResponse> GenerateTokenResponseAsync(UserEntity user, string? scope, string? nonce, CancellationToken ct = default)
     {
         var scopes = scope ?? "openid profile email";
 
@@ -44,7 +44,11 @@ public class TokenService
         if (scopes.Contains("openid"))
             idToken = GenerateIdToken(user, nonce);
 
-        var response = new OAuth2TokenResponse
+        // Flushes the new login token along with any other pending changes
+        // from the calling flow (e.g. auth-code update, old-token removal).
+        await _loginTokenRepository.SaveChangesAsync(ct);
+
+        return new OAuth2TokenResponse
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken,
@@ -53,14 +57,13 @@ public class TokenService
             ExpiresIn = _options.AccessTokenExpirationMinutes * 60,
             Scope = scopes
         };
-
-        return Task.FromResult(response);
     }
 
-    public Task<string> CreateRefreshTokenAsync(UserEntity user, CancellationToken ct = default)
+    public async Task<string> CreateRefreshTokenAsync(UserEntity user, CancellationToken ct = default)
     {
         var token = CreateAndPersistRefreshToken(user);
-        return Task.FromResult(token);
+        await _loginTokenRepository.SaveChangesAsync(ct);
+        return token;
     }
 
     public async Task ValidateRefreshTokenAsync(Guid tokenId, Guid userUuid, CancellationToken ct = default)

@@ -29,10 +29,14 @@ public class SocialAuthService(UserRepository userRepository)
         var normalizedProvider = provider.ToLowerInvariant();
         var existingUser = await userRepository.GetByEmailAsync(info.Email, ct);
 
-        if (existingUser is not null)
-            return LinkProviderToExistingUser(existingUser, normalizedProvider, info);
+        var user = existingUser is not null
+            ? LinkProviderToExistingUser(existingUser, normalizedProvider, info)
+            : CreateUserFromSocialLogin(normalizedProvider, info);
 
-        return CreateUserFromSocialLogin(normalizedProvider, info);
+        // Persist so user.Id is assigned before the caller creates a login token (FK).
+        await userRepository.SaveChangesAsync(ct);
+
+        return user;
     }
 
     private static UserEntity LinkProviderToExistingUser(

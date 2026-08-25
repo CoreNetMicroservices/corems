@@ -68,6 +68,7 @@ public class TemplateService(
         };
 
         repository.Add(entity);
+        await repository.SaveChangesAsync(ct);
         return MapToDto(entity);
     }
 
@@ -102,6 +103,7 @@ public class TemplateService(
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = currentUserService.GetCurrentUserUuid();
         repository.Update(entity);
+        await repository.SaveChangesAsync(ct);
 
         cache.Invalidate(entity.TemplateId, entity.Language);
 
@@ -117,6 +119,7 @@ public class TemplateService(
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = currentUserService.GetCurrentUserUuid();
         repository.Update(entity);
+        await repository.SaveChangesAsync(ct);
 
         cache.Invalidate(entity.TemplateId, entity.Language);
     }

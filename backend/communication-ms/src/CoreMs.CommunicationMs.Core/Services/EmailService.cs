@@ -61,6 +61,8 @@ public class EmailService
         entity.Status = status;
         if (status == MessageStatus.Sent) entity.SentAt = DateTime.UtcNow;
 
+        await _messageRepository.SaveChangesAsync(ct);
+
         return MapToResponse(entity, payload);
     }
 

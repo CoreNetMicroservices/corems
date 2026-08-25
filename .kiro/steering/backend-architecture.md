@@ -56,7 +56,7 @@ CoreMs.Common/
 ├── Extensions/    # [Service], [Repository] attributes, ServiceCollectionExtensions, ValidationExtensions
 ├── Http/          # AddCoreMsClient, ServiceAuthDelegatingHandler
 ├── Messaging/     # MassTransit extensions (AddCoreMsMessaging)
-├── Middleware/    # GlobalExceptionHandler, AutoSaveChangesMiddleware, ValidationFilter, StatusCodePages
+├── Middleware/    # GlobalExceptionHandler, ValidationFilter, StatusCodePages
 ├── Repository/    # CrudRepository, SearchableRepository, PagedResult, QueryParameters, FilterParser
 ├── Security/      # JWT, roles, CurrentUserService, TokenProvider
 ```

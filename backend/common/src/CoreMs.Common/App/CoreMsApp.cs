@@ -367,7 +367,6 @@ public static class CoreMsApp
         app.UseExceptionHandler();
         app.UseCoreMsStatusCodePages();
         app.UseCors();
-        app.UseMiddleware<AutoSaveChangesMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
@@ -430,7 +429,7 @@ public static class CoreMsApp
         return false;
     }
 
-    private static async Task MigrateAsync<TDbContext>(WebApplication app)
+    private static async Task MigrateAsync<TDbContext>(WebApplication app) 
         where TDbContext : DbContext
     {
         using var scope = app.Services.CreateScope();

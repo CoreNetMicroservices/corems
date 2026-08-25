@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text;
 using System.Threading.RateLimiting;
 using CoreMs.Common.App;
 using CoreMs.Common.Security;
@@ -10,7 +9,6 @@ using CoreMs.UserMs.Api.Services;
 using CoreMs.UserMs.Core.Services;
 using CoreMs.UserMs.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,32 +32,27 @@ builder.Services.AddHttpClient();
 builder.Services.AddCoreMsTokenProvider(builder.Configuration);
 
 var jwtOptions = builder.Configuration.GetSection(CoreMsApp.SectionNameFor<JwtOptions>()).Get<JwtOptions>()!;
-var signingKey = string.IsNullOrEmpty(jwtOptions.SecretKey)
-    ? new SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
-    : new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
 builder.Services.AddAuthentication(o =>
     {
         o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         o.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(o =>
+    .AddJwtBearer();
+
+// Derive the validation key/algorithm from TokenProvider so signing and validation always
+// agree (HS256/RS256/ES256). TokenProvider fails fast if the configured algorithm's key
+// material is missing — no silent random-key fallback. Audience validation stays enabled here.
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<TokenProvider>((o, tokenProvider) =>
     {
         o.MapInboundClaims = false;
         o.Events = JwtBearerEventsHandler.Create();
-        o.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtOptions.Issuer,
-            ValidateAudience = true,
-            ValidAudience = jwtOptions.Audience,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = signingKey,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
-            NameClaimType = "sub",
-            RoleClaimType = "role"
-        };
+
+        var parameters = tokenProvider.GetValidationParameters();
+        parameters.ValidateAudience = true;
+        parameters.ValidAudience = jwtOptions.Audience;
+        o.TokenValidationParameters = parameters;
     });
 
 builder.Services.AddRateLimiter(options =>

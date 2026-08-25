@@ -256,11 +256,9 @@ public static class CoreMsApp
     }
 
     /// <summary>
-    /// Registers an options class with configuration binding, data annotation validation, and startup validation.
-    /// The options class must have a <c>public const string SectionName</c> field.
-    ///
-    /// Replaces:
-    ///   builder.Services.AddOptions&lt;T&gt;().Bind(...).ValidateDataAnnotations().ValidateOnStart();
+    /// Registers a single options class with configuration binding, data annotation validation,
+    /// and startup validation. Prefer marking the class with <c>[Options]</c> for automatic
+    /// registration; use this only for one-off explicit registration.
     ///
     /// Usage:
     ///   builder.AddCoreMsOptions&lt;StorageOptions&gt;();
@@ -269,32 +267,15 @@ public static class CoreMsApp
         this IHostApplicationBuilder builder)
         where TOptions : class
     {
-        var sectionName = GetSectionName<TOptions>();
-        builder.Services.AddOptions<TOptions>()
-            .Bind(builder.Configuration.GetSection(sectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-        return builder;
-    }
-
-    /// <summary>
-    /// Registers an options class without DataAnnotation validation (only startup binding check).
-    /// </summary>
-    public static IHostApplicationBuilder AddCoreMsOptionsLite<TOptions>(
-        this IHostApplicationBuilder builder)
-        where TOptions : class
-    {
-        var sectionName = GetSectionName<TOptions>();
-        builder.Services.AddOptions<TOptions>()
-            .Bind(builder.Configuration.GetSection(sectionName))
-            .ValidateOnStart();
+        BindOptionsCore<TOptions>(builder, GetSectionName<TOptions>());
         return builder;
     }
 
     /// <summary>
     /// Scans the given assemblies for classes marked with <c>[Options]</c> and registers each with
-    /// configuration binding and startup validation. DataAnnotation validation is applied unless the
-    /// attribute sets <c>Validate = false</c>. Each type must declare a <c>public const string SectionName</c>.
+    /// configuration binding, data annotation validation, and startup validation. Classes without
+    /// any DataAnnotation attributes simply pass validation. Section name is resolved per the
+    /// <c>[Options]</c> attribute rules.
     ///
     /// Usage:
     ///   builder.AddCoreMsOptions(typeof(JwtOptions).Assembly);
@@ -311,7 +292,7 @@ public static class CoreMsApp
                 .Where(x => x.Attr is not null);
 
             foreach (var (type, attr) in optionTypes)
-                BindOptions(builder, type, ResolveSectionName(type, attr!.SectionName), attr.Validate);
+                BindOptions(builder, type, ResolveSectionName(type, attr!.SectionName));
         }
         return builder;
     }
@@ -320,16 +301,16 @@ public static class CoreMsApp
         typeof(CoreMsApp).GetMethod(nameof(BindOptionsCore),
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
 
-    private static void BindOptions(IHostApplicationBuilder builder, Type optionType, string sectionName, bool validate)
-        => BindOptionsGeneric.MakeGenericMethod(optionType).Invoke(null, [builder, sectionName, validate]);
+    private static void BindOptions(IHostApplicationBuilder builder, Type optionType, string sectionName)
+        => BindOptionsGeneric.MakeGenericMethod(optionType).Invoke(null, [builder, sectionName]);
 
-    private static void BindOptionsCore<TOptions>(IHostApplicationBuilder builder, string sectionName, bool validate)
+    private static void BindOptionsCore<TOptions>(IHostApplicationBuilder builder, string sectionName)
         where TOptions : class
     {
-        var optionsBuilder = builder.Services.AddOptions<TOptions>()
-            .Bind(builder.Configuration.GetSection(sectionName));
-        if (validate) optionsBuilder.ValidateDataAnnotations();
-        optionsBuilder.ValidateOnStart();
+        builder.Services.AddOptions<TOptions>()
+            .Bind(builder.Configuration.GetSection(sectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
     }
 
     /// <summary>

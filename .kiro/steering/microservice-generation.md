@@ -172,15 +172,17 @@ Section name resolution (in order):
 
 Attribute forms:
 ```csharp
-[Options]                          // derive section, validate
-[Options(Validate = false)]        // derive section, binding check only (no DataAnnotations)
-[Options("Mail")]                  // custom section, validate
-[Options("Sms", Validate = false)] // custom section, binding check only
+[Options]              // derive section from class name
+[Options("Mail")]      // custom section name
 ```
 
+All `[Options]` classes are bound with DataAnnotation validation and validated on startup.
+Classes with no annotations simply pass — there is no opt-out. Add `[Required]`/`[Range]`/etc.
+to a field to enforce it.
+
 Note: with a bare `[Options]`, the class name *is* the config section key. Renaming the class
-changes the bound section. Validated options (`[Required]` + `ValidateOnStart`) fail loudly at
-startup if the section goes missing; `Validate = false` options fall back to defaults silently.
+changes the bound section. A class with `[Required]` fields fails loudly at startup if the
+section is missing; a class with no annotations falls back to defaults silently.
 
 If a section name is needed at startup *before* the options system exists (e.g. building a
 signing key or choosing an implementation), use `CoreMsApp.SectionNameFor<TOptions>()` rather

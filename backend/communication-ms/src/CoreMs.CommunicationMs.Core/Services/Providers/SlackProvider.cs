@@ -8,7 +8,7 @@ using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
-[Options("Slack", Validate = false)]
+[Options("Slack")]
 public class SlackProviderOptions
 {
 

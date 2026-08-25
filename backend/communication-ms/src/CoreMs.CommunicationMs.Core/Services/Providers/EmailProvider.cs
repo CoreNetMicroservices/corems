@@ -9,7 +9,7 @@ using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
-[Options("Mail", Validate = false)]
+[Options("Mail")]
 public class EmailProviderOptions
 {
 

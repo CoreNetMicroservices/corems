@@ -12,7 +12,7 @@ namespace CoreMs.UserMs.Core.Services;
 /// <summary>
 /// Configuration for OAuth2 providers, injected from appsettings.
 /// </summary>
-[Options("SocialAuth", Validate = false)]
+[Options("SocialAuth")]
 public class OAuth2ProviderOptions
 {
 

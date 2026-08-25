@@ -8,7 +8,7 @@ using CoreMs.Common.Extensions;
 
 namespace CoreMs.CommunicationMs.Core.Services.Providers;
 
-[Options("Sms", Validate = false)]
+[Options("Sms")]
 public class SmsProviderOptions
 {
 

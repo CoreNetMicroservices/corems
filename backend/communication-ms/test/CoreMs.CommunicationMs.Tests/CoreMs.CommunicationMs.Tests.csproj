@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.CommunicationMs.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Api\CoreMs.CommunicationMs.Api.csproj" />
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Core\CoreMs.CommunicationMs.Core.csproj" />
+    <ProjectReference Include="$(SolutionRoot)communication-ms\src\CoreMs.CommunicationMs.Infrastructure\CoreMs.CommunicationMs.Infrastructure.csproj" />
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common.Testing\CoreMs.Common.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="FsCheck" />
+    <PackageReference Include="FsCheck.Xunit" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+</Project>

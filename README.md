@@ -8,7 +8,7 @@ Built with C# / ASP.NET Core 10, .NET Aspire orchestration, and a shared library
 
 CoreMS is a starting point for building a new product without rebuilding the same foundations every time. Most applications — a backend API, an admin portal, a SaaS product, an e-shop — need the same building blocks before any real feature work begins: authentication and RBAC, user management, transactional email/SMS, file storage, templating, and i18n.
 
-CoreMS ships those as working, pre-built services so you can start with the plumbing already done, then add your domain on top. It gives you two things:
+CoreMS ships those as working, pre-built services so you can start with the solid foundation, then add your domain on top. It gives you two things:
 
 - **Acceleration at the start** — clone, run one command, and you have running services with auth, messaging, storage, health checks, observability, and CI/CD already wired.
 - **A clean base to extend** — a consistent three-layer structure (Api / Core / Infrastructure), convention-based registration, and shared cross-cutting concerns in `CoreMs.Common`. New services follow the same shape, so the codebase stays coherent as it grows.

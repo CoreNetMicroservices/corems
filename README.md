@@ -2,7 +2,18 @@
 
 Enterprise microservices toolkit for rapid application development.
 
-Built with C# / ASP.NET Core 10, .NET Aspire orchestration, and a custom lightweight framework (`CoreMs.Common`).
+Built with C# / ASP.NET Core 10, .NET Aspire orchestration, and a shared library of conventions and service defaults (`CoreMs.Common`).
+
+## What is this for?
+
+CoreMS is a starting point for building a new product without rebuilding the same foundations every time. Most applications — a backend API, an admin portal, a SaaS product, an e-shop — need the same building blocks before any real feature work begins: authentication and RBAC, user management, transactional email/SMS, file storage, templating, and i18n.
+
+CoreMS ships those as working, pre-built services so you can start with the plumbing already done, then add your domain on top. It gives you two things:
+
+- **Acceleration at the start** — clone, run one command, and you have running services with auth, messaging, storage, health checks, observability, and CI/CD already wired.
+- **A clean base to extend** — a consistent three-layer structure (Api / Core / Infrastructure), convention-based registration, and shared cross-cutting concerns in `CoreMs.Common`. New services follow the same shape, so the codebase stays coherent as it grows.
+
+Use the services you need, ignore the ones you don't (unused services simply aren't wired into the orchestrator), and add your own alongside them.
 
 ## Services
 
@@ -37,9 +48,9 @@ Test credentials (password: `Password123!`):
 - `admin@corems.local` — all admin roles
 - `alice.johnson@corems.local` — regular user
 
-## Framework API
+## Shared Library API
 
-Every service's `Program.cs` uses the CoreMS framework:
+Every service's `Program.cs` uses the CoreMS shared library:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -62,7 +73,7 @@ app.MapCoreMsEndpoints();       // Health endpoints
 app.Run();
 ```
 
-### Available Framework Methods
+### Available Extension Methods
 
 | Method | Purpose |
 |--------|---------|
@@ -125,7 +136,7 @@ corems-parent/
 │   │   └── CoreMs.ServiceDefaults/   # CoreMsHost (OTel, health, discovery)
 │   ├── common/
 │   │   └── src/
-│   │       ├── CoreMs.Common/        # Framework library (App/, Security/, Repository/, etc.)
+│   │       ├── CoreMs.Common/        # Shared library (App/, Security/, Repository/, etc.)
 │   │       └── CoreMs.Common.Testing/# CoreMsTestFactory for integration tests
 │   ├── user-ms/                      # src/ (Api, Core, Infrastructure) + test/
 │   ├── communication-ms/             # src/ (Api, Client, Core, Infrastructure)

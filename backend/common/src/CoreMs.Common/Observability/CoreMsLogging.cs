@@ -83,7 +83,7 @@ public static class CoreMsLogging
 
     /// <summary>
     /// Resolves the effective format: explicit config wins, otherwise auto
-    /// (Console in Development, Json elsewhere).
+    /// (Console in Development/Testing, Json elsewhere).
     /// </summary>
     public static CoreMsLogFormat ResolveFormat(string? configured, IHostEnvironment environment)
     {
@@ -91,7 +91,9 @@ public static class CoreMsLogging
             && Enum.TryParse<CoreMsLogFormat>(configured, ignoreCase: true, out var parsed))
             return parsed;
 
-        return environment.IsDevelopment() ? CoreMsLogFormat.Console : CoreMsLogFormat.Json;
+        return environment.IsDevelopment() || environment.EnvironmentName == "Testing"
+            ? CoreMsLogFormat.Console
+            : CoreMsLogFormat.Json;
     }
 
     /// <summary>

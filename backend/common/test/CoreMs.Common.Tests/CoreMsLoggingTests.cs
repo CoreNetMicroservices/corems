@@ -32,6 +32,10 @@ public class CoreMsLoggingTests
         => CoreMsLogging.ResolveFormat(null, Production).Should().Be(CoreMsLogFormat.Json);
 
     [Fact]
+    public void ResolveFormat_NullInTesting_DefaultsToConsole()
+        => CoreMsLogging.ResolveFormat(null, new FakeEnvironment("Testing")).Should().Be(CoreMsLogFormat.Console);
+
+    [Fact]
     public void ResolveFormat_EmptyInProduction_DefaultsToJson()
         => CoreMsLogging.ResolveFormat("   ", Production).Should().Be(CoreMsLogFormat.Json);
 

@@ -1,35 +1,18 @@
+using CoreMs.Common.Data;
 using CoreMs.TemplateMs.Core.Entities;
-using CoreMs.TemplateMs.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace CoreMs.TemplateMs.Api.Services;
+namespace CoreMs.TemplateMs.Infrastructure.Data;
 
-public class SeedDataService
+public class SeedDataService(TemplateMsDbContext context, ILogger<SeedDataService> logger)
+    : CoreMsSeeder<TemplateEntity>(context, logger)
 {
-    private readonly TemplateMsDbContext _context;
-    private readonly ILogger<SeedDataService> _logger;
+    protected override async Task<bool> AlreadySeededAsync(CancellationToken ct) =>
+        await Context.Set<TemplateEntity>()
+            .AnyAsync(t => t.TemplateId == "corems-styles" && t.Language == "en", ct);
 
-    public SeedDataService(TemplateMsDbContext context, ILogger<SeedDataService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-
-    public async Task SeedAsync()
-    {
-        if (await _context.Set<TemplateEntity>().AnyAsync(t => t.TemplateId == "corems-styles" && t.Language == "en"))
-        {
-            _logger.LogInformation("Template seed data already exists — skipping");
-            return;
-        }
-
-        _logger.LogInformation("Seeding template data...");
-        _context.Set<TemplateEntity>().AddRange(CreateTemplates());
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Template seed data complete");
-    }
-
-    private static List<TemplateEntity> CreateTemplates() =>
+    protected override IEnumerable<TemplateEntity> BuildSeedData() =>
     [
         // ===== SHARED STYLES (COMMON) =====
         CreateStylesTemplate(),

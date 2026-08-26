@@ -1,3 +1,4 @@
+using CoreMs.Common.Data;
 using CoreMs.TranslationMs.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -7,32 +8,14 @@ namespace CoreMs.TranslationMs.Infrastructure.Data;
 /// <summary>
 /// Seeds development/staging translation bundles matching the Java reference implementation.
 /// </summary>
-public class SeedDataService
+public class SeedDataService(TranslationMsDbContext context, ILogger<SeedDataService> logger)
+    : CoreMsSeeder<TranslationBundleEntity>(context, logger)
 {
-    private readonly TranslationMsDbContext _context;
-    private readonly ILogger<SeedDataService> _logger;
+    protected override async Task<bool> AlreadySeededAsync(CancellationToken ct) =>
+        await Context.Set<TranslationBundleEntity>()
+            .AnyAsync(t => t.Realm == "corems" && t.Lang == "en", ct);
 
-    public SeedDataService(TranslationMsDbContext context, ILogger<SeedDataService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
-
-    public async Task SeedAsync()
-    {
-        if (await _context.Set<TranslationBundleEntity>().AnyAsync(t => t.Realm == "corems" && t.Lang == "en"))
-        {
-            _logger.LogInformation("Translation seed data already exists — skipping");
-            return;
-        }
-
-        _logger.LogInformation("Seeding translation bundles...");
-        _context.Set<TranslationBundleEntity>().AddRange(CreateBundles());
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Translation seed data complete — 2 bundles created (corems/en, corems/no)");
-    }
-
-    private static List<TranslationBundleEntity> CreateBundles() =>
+    protected override IEnumerable<TranslationBundleEntity> BuildSeedData() =>
     [
         new TranslationBundleEntity
         {

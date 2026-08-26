@@ -1,5 +1,4 @@
 using System.Text.Json;
-using CoreMs.TemplateMs.Api.Services;
 using CoreMs.TemplateMs.Core.Entities;
 using CoreMs.TemplateMs.Infrastructure.Data;
 using FluentAssertions;

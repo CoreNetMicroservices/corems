@@ -1,7 +1,6 @@
 using System.Reflection;
 using CoreMs.Common.App;
 using CoreMs.ServiceDefaults;
-using CoreMs.TemplateMs.Api.Services;
 using CoreMs.TemplateMs.Core.Services;
 using CoreMs.TemplateMs.Infrastructure.Data;
 
@@ -11,6 +10,7 @@ builder.AddCoreMsHost();
 builder.AddCoreMsApp(o => o.WithSwagger("Template Management Service", "Template CRUD, rendering, and caching service"));
 builder.AddCoreMsDatabase<TemplateMsDbContext>();
 builder.AddCoreMsModules(typeof(TemplateService).Assembly, typeof(Program).Assembly);
+builder.Services.AddCoreMsSeeder<SeedDataService>();
 
 builder.Services.AddSwaggerGen(o =>
 {
@@ -20,9 +20,7 @@ builder.Services.AddSwaggerGen(o =>
 
 var app = builder.Build();
 
-if (await app.RunCoreMsDatabaseAsync<TemplateMsDbContext>(
-    seed: async (db, sp) => await new SeedDataService(db,
-        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>()).SeedAsync())) return;
+if (await app.RunCoreMsDatabaseAsync<TemplateMsDbContext>()) return;
 
 app.UseCoreMsApp();
 app.MapCoreMsEndpoints();

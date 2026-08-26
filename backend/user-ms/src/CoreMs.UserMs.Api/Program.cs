@@ -76,12 +76,11 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddHostedService<TokenCleanupService>();
+builder.Services.AddCoreMsSeeder<SeedDataService>();
 
 var app = builder.Build();
 
-if (await app.RunCoreMsDatabaseAsync<UserMsDbContext>(
-    seed: async (db, sp) => await new SeedDataService(db,
-        sp.GetRequiredService<ILoggerFactory>().CreateLogger<SeedDataService>()).SeedAsync())) return;
+if (await app.RunCoreMsDatabaseAsync<UserMsDbContext>()) return;
 
 app.UseCoreMsApp();
 app.UseRateLimiter();

@@ -1,3 +1,4 @@
+using CoreMs.Common.Data;
 using CoreMs.UserMs.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,36 +9,16 @@ namespace CoreMs.UserMs.Infrastructure.Data;
 /// Seeds development/staging test data. Run via CLI: dotnet run -- --seed
 /// Password for all users: Password123!
 /// </summary>
-public class SeedDataService
+public class SeedDataService(UserMsDbContext context, ILogger<SeedDataService> logger)
+    : CoreMsSeeder<UserEntity>(context, logger)
 {
-    private readonly UserMsDbContext _context;
-    private readonly ILogger<SeedDataService> _logger;
-
     // BCrypt hash of "Password123!"
     private const string DefaultPasswordHash = "$2a$10$qdt5KNdDULqFsZi30vj38ePzMkUi1t2NtHnL3jgpTTk0p3ElLyOoq";
 
-    public SeedDataService(UserMsDbContext context, ILogger<SeedDataService> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
+    protected override async Task<bool> AlreadySeededAsync(CancellationToken ct) =>
+        await Context.Set<UserEntity>().AnyAsync(u => u.Email == "super@corems.local", ct);
 
-    public async Task SeedAsync()
-    {
-        _logger.LogInformation("Applying migrations...");
-        await _context.Database.MigrateAsync();
-
-        if (await _context.Set<UserEntity>().AnyAsync(u => u.Email == "super@corems.local"))
-        {
-            _logger.LogInformation("Seed data already exists — skipping");
-            return;
-        }
-
-        _logger.LogInformation("Seeding test data...");
-        _context.Set<UserEntity>().AddRange(CreateUsers());
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Seed data complete — 30 users created");
-    }
+    protected override IEnumerable<UserEntity> BuildSeedData() => CreateUsers();
 
     private static List<UserEntity> CreateUsers()
     {

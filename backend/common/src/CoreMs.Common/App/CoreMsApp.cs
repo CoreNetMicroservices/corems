@@ -376,26 +376,35 @@ public static class CoreMsApp
     // ---------------------------------------------------------------------------
 
     /// <summary>
+    /// Registers a database seeder for auto-discovery by <c>RunCoreMsDatabaseAsync</c>.
+    /// A service can register more than one; all are run (in registration order) on seed.
+    ///
+    /// Usage in Program.cs:
+    ///   builder.Services.AddCoreMsSeeder&lt;MySeeder&gt;();
+    /// </summary>
+    public static IServiceCollection AddCoreMsSeeder<TSeeder>(this IServiceCollection services)
+        where TSeeder : class, ICoreMsSeeder
+    {
+        services.AddScoped<ICoreMsSeeder, TSeeder>();
+        return services;
+    }
+
+    /// <summary>
     /// Handles database migration and optional seeding with support for CLI commands.
+    /// Seeders are auto-discovered from DI — register them with <c>AddCoreMsSeeder&lt;T&gt;()</c>.
     ///
     /// Behaviour:
-    ///   - Development: always migrates, runs seeder if provided
+    ///   - Development: always migrates, then runs all registered <see cref="ICoreMsSeeder"/>s
     ///   - --migrate arg: migrates and exits (returns true → caller should return)
-    ///   - --seed arg:    runs seeder and exits (returns true → caller should return)
+    ///   - --seed arg:    runs all seeders and exits (returns true → caller should return)
+    ///   - --reseed arg:  clears (truncates) then re-runs all seeders; Development-only, throws otherwise
     ///   - Production without args: does nothing (migrations should be run by CI/CD)
     ///
-    /// Usage (no seeding):
+    /// Usage:
     ///   if (await app.RunCoreMsDatabaseAsync&lt;MyDbContext&gt;()) return;
-    ///
-    /// Usage (with seeding):
-    ///   if (await app.RunCoreMsDatabaseAsync&lt;MyDbContext&gt;(
-    ///       seed: async (db, sp) => await new SeedDataService(db, sp.GetRequiredService&lt;ILoggerFactory&gt;()
-    ///           .CreateLogger&lt;SeedDataService&gt;()).SeedAsync())) return;
     /// </summary>
     /// <returns>True if a CLI command was handled and the process should exit.</returns>
-    public static async Task<bool> RunCoreMsDatabaseAsync<TDbContext>(
-        this WebApplication app,
-        Func<TDbContext, IServiceProvider, Task>? seed = null)
+    public static async Task<bool> RunCoreMsDatabaseAsync<TDbContext>(this WebApplication app)
         where TDbContext : CoreMsDbContext
     {
         if (app.Environment.Args().Contains("--migrate"))
@@ -407,26 +416,33 @@ public static class CoreMsApp
 
         if (app.Environment.Args().Contains("--seed"))
         {
-            if (seed is null)
-                throw new InvalidOperationException("--seed was passed but no seed delegate was provided.");
-
-            await RunSeedAsync<TDbContext>(app, seed);
+            await RunSeedersAsync(app);
             app.Logger.LogInformation("Seed completed successfully.");
+            return true;
+        }
+
+        if (app.Environment.Args().Contains("--reseed"))
+        {
+            if (!app.Environment.IsDevelopment())
+                throw new InvalidOperationException(
+                    "--reseed is destructive and only allowed in the Development environment.");
+
+            await ClearSeedersAsync(app);
+            await RunSeedersAsync(app);
+            app.Logger.LogInformation("Reseed completed successfully.");
             return true;
         }
 
         if (app.Environment.IsDevelopment())
         {
             await MigrateAsync<TDbContext>(app);
-
-            if (seed is not null)
-                await RunSeedAsync<TDbContext>(app, seed);
+            await RunSeedersAsync(app);
         }
 
         return false;
     }
 
-    private static async Task MigrateAsync<TDbContext>(WebApplication app) 
+    private static async Task MigrateAsync<TDbContext>(WebApplication app)
         where TDbContext : DbContext
     {
         using var scope = app.Services.CreateScope();
@@ -434,14 +450,21 @@ public static class CoreMsApp
         await db.Database.MigrateAsync();
     }
 
-    private static async Task RunSeedAsync<TDbContext>(
-        WebApplication app,
-        Func<TDbContext, IServiceProvider, Task> seed)
-        where TDbContext : DbContext
+    private static async Task RunSeedersAsync(WebApplication app)
     {
         using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<TDbContext>();
-        await seed(db, scope.ServiceProvider);
+        var seeders = scope.ServiceProvider.GetServices<ICoreMsSeeder>();
+        foreach (var seeder in seeders)
+            await seeder.SeedAsync();
+    }
+
+    private static async Task ClearSeedersAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        // Clear in reverse registration order so dependents are removed before dependencies.
+        var seeders = scope.ServiceProvider.GetServices<ICoreMsSeeder>().Reverse();
+        foreach (var seeder in seeders)
+            await seeder.ClearAsync();
     }
 }
 

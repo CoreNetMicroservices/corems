@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CoreMs.UserMs.Client</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>CoreMs.UserMs.Client</PackageId>
+    <Description>User microservice client library for CoreMS</Description>
+    <Authors>CoreNetMicroservices</Authors>
+    <RepositoryUrl>https://github.com/CoreNetMicroservices/corems</RepositoryUrl>
+    <Version Condition="'$(VersionSuffix)' != ''">1.0.$(VersionSuffix)</Version>
+    <Version Condition="'$(VersionSuffix)' == ''">1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(SolutionRoot)common\src\CoreMs.Common\CoreMs.Common.csproj" />
+  </ItemGroup>
+
+</Project>

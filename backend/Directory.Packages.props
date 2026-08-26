@@ -106,6 +106,8 @@
     <PackageVersion Include="CoreMs.CommunicationMs.Client" Version="1.0.*" />
     <PackageVersion Include="CoreMs.TemplateMs.Client" Version="1.0.*" />
     <PackageVersion Include="CoreMs.DocumentMs.Client" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.UserMs.Client" Version="1.0.*" />
+    <PackageVersion Include="CoreMs.TranslationMs.Client" Version="1.0.*" />
   </ItemGroup>
 
   <ItemGroup Label="Logging">

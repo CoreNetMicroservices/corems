@@ -185,6 +185,7 @@ public class UserRepository(DbContext context) : SearchableRepository<UserEntity
 - Real authentication flow (no mocked tokens)
 
 ## Git & Commit Standards
+- **Never run `git commit` or `git push` unless explicitly instructed to commit/push in that message.** Instructions to make a change ("fix that", "do it", "go", "apply it") mean edit the code only — not commit. When work is ready, propose a commit and wait for approval.
 - Conventional commit format: `feat:`, `fix:`, `refactor:`
 - Never commit secrets or appsettings with real credentials
 - Use `dotnet user-secrets` for local development

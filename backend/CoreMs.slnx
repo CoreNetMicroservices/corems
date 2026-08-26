@@ -28,6 +28,7 @@
   </Folder>
   <Folder Name="/communication-ms/test/">
     <Project Path="communication-ms/test/CoreMs.CommunicationMs.Tests/CoreMs.CommunicationMs.Tests.csproj" />
+    <Project Path="communication-ms/test/CoreMs.CommunicationMs.IntegrationTests/CoreMs.CommunicationMs.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/document-ms/src/">
     <Project Path="document-ms/src/CoreMs.DocumentMs.Api/CoreMs.DocumentMs.Api.csproj" />
@@ -46,6 +47,7 @@
   </Folder>
   <Folder Name="/translation-ms/test/">
     <Project Path="translation-ms/test/CoreMs.TranslationMs.Tests/CoreMs.TranslationMs.Tests.csproj" />
+    <Project Path="translation-ms/test/CoreMs.TranslationMs.IntegrationTests/CoreMs.TranslationMs.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/template-ms/src/">
     <Project Path="template-ms/src/CoreMs.TemplateMs.Api/CoreMs.TemplateMs.Api.csproj" />
@@ -55,5 +57,6 @@
   </Folder>
   <Folder Name="/template-ms/test/">
     <Project Path="template-ms/test/CoreMs.TemplateMs.Tests/CoreMs.TemplateMs.Tests.csproj" />
+    <Project Path="template-ms/test/CoreMs.TemplateMs.IntegrationTests/CoreMs.TemplateMs.IntegrationTests.csproj" />
   </Folder>
 </Solution>

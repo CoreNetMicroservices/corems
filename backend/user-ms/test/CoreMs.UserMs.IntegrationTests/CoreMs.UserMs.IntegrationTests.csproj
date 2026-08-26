@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(SolutionRoot)user-ms\src\CoreMs.UserMs.Api\CoreMs.UserMs.Api.csproj" />
+    <ProjectReference Include="$(SolutionRoot)user-ms\src\CoreMs.UserMs.Client\CoreMs.UserMs.Client.csproj" />
     <ProjectReference Include="$(SolutionRoot)user-ms\src\CoreMs.UserMs.Core\CoreMs.UserMs.Core.csproj" />
     <ProjectReference Include="$(SolutionRoot)user-ms\src\CoreMs.UserMs.Infrastructure\CoreMs.UserMs.Infrastructure.csproj" />
   </ItemGroup>

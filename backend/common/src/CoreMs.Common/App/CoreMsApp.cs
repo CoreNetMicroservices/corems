@@ -13,8 +13,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using CoreMs.Common.Observability;
 using Serilog;
-using Serilog.Events;
 
 namespace CoreMs.Common.App;
 
@@ -88,15 +88,11 @@ public static class CoreMsApp
         var options = new CoreMsAppOptions();
         configure?.Invoke(options);
 
-        // Serilog: structured logging with correlation ID enrichment
-        builder.Services.AddSerilog(cfg => cfg
-            .ReadFrom.Configuration(builder.Configuration)
-            .Enrich.FromLogContext()
-            .Enrich.WithProperty("ServiceName", options.Swagger?.Title ?? "CoreMS")
-            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-            .WriteTo.Console(outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId:l} {Message:lj}{NewLine}{Exception}"));
+        // Serilog: structured logging with correlation ID enrichment.
+        // Format (Console/Json) and minimum level are driven by the CoreMsLogging config section.
+        var serviceName = options.Swagger?.Title ?? "CoreMS";
+        builder.Services.AddSerilog(cfg =>
+            CoreMsLogging.Configure(cfg, builder.Configuration, builder.Environment, serviceName));
 
         builder.Services.AddCors(o =>
         {
@@ -368,6 +364,7 @@ public static class CoreMsApp
         app.UseCoreMsStatusCodePages();
         app.UseCors();
         app.UseAuthentication();
+        app.UseMiddleware<UserContextMiddleware>();
         app.UseAuthorization();
         app.MapControllers();
 

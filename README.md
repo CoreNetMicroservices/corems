@@ -73,8 +73,47 @@ app.Run();
 | `AddCoreMsClient<T>(name)` | Service-to-service HTTP client with JWT + correlation ID forwarding |
 | `AddCoreMsMessaging(config)` | MassTransit/RabbitMQ with correlation ID propagation |
 | `RunCoreMsDatabaseAsync<T>()` | Auto-migrate + seed in dev, --migrate/--seed CLI |
-| `UseCoreMsApp()` | Full middleware pipeline (correlation ID, Swagger, auth, auto-save) |
-| `MapCoreMsEndpoints()` | /health and /alive endpoints |
+| `UseCoreMsApp()` | Full middleware pipeline (correlation ID, user context, Swagger, auth) |
+| `MapCoreMsEndpoints()` | Health endpoints: /alive, /ready, /health |
+
+## Observability
+
+Logging, tracing, metrics, and health are configured centrally — every service gets them with no per-service code.
+
+### Structured logging
+
+Serilog is configured by `AddCoreMsApp()`. Format and level are driven by the `CoreMsLogging` config section:
+
+```json
+{
+  "CoreMsLogging": {
+    "Format": "Json",        // Console | Json  (omit = auto: Console in Dev, Json in Prod)
+    "MinimumLevel": "INFO"   // INFO | WARN | ERROR | Debug | Verbose | Fatal  (omit = INFO)
+  }
+}
+```
+
+- `Json` mode emits newline-delimited compact JSON (CLEF), ready for Splunk and other aggregators.
+- Every event is enriched with `ServiceName`, `Environment`, `CorrelationId`, and the current trace's `TraceId`/`SpanId`.
+- Authenticated requests also carry `UserId` and `TokenId` (opaque identifiers only — no email, roles, or tokens are logged).
+
+### Tracing & metrics
+
+`AddCoreMsHost()` wires OpenTelemetry (ASP.NET Core, HttpClient, and .NET runtime instrumentation) with service resource attributes (`service.name`, `service.version`, `service.instance.id`) and OTLP export.
+
+Export target is controlled by the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable — the Aspire dashboard sets it locally; point it at a collector or Azure Monitor in production. No code change between environments.
+
+### Health endpoints
+
+Mapped by `MapCoreMsEndpoints()`, consumed directly by container/orchestrator probes:
+
+| Endpoint | Checks | Use |
+|----------|--------|-----|
+| `/alive` | process liveness only | liveness probe |
+| `/ready` | dependencies (Postgres, RabbitMQ bus) | readiness probe |
+| `/health` | full report | dashboards / debugging |
+
+Dependency checks are auto-detected: the Postgres check registers only when a `corems` connection string is present, and RabbitMQ health comes from MassTransit's bus check in services that use messaging.
 
 ## Architecture
 

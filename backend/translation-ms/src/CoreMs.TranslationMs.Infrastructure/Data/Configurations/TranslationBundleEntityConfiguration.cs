@@ -26,6 +26,6 @@ public class TranslationBundleEntityConfiguration : IEntityTypeConfiguration<Tra
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                 v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions?)null) ?? new());
-        builder.Property(e => e.UpdatedAt).IsRequired().HasDefaultValueSql("NOW()");
+        builder.Property(e => e.UpdatedAt).IsRequired().HasDefaultValueSql("CURRENT_TIMESTAMP");
     }
 }

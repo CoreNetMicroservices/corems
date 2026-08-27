@@ -32,13 +32,13 @@ public class DocumentEntityConfiguration : IEntityTypeConfiguration<DocumentEnti
         builder.Property(e => e.Description).HasMaxLength(2000);
         builder.Property(e => e.Version).IsRequired().HasDefaultValue(1);
         builder.Property(e => e.IsDeleted).IsRequired().HasDefaultValue(false);
-        builder.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("NOW()");
-        builder.Property(e => e.UpdatedAt).IsRequired().HasDefaultValueSql("NOW()");
+        builder.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("CURRENT_TIMESTAMP");
+        builder.Property(e => e.UpdatedAt).IsRequired().HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Tags stored as PostgreSQL jsonb
+        // Tags stored as JSON array (jsonb on Postgres, TEXT on SQLite)
         builder.Property(e => e.Tags)
             .HasColumnType("jsonb")
             .IsRequired()
-            .HasDefaultValueSql("'[]'::jsonb");
+            .HasDefaultValue(new List<string>());
     }
 }

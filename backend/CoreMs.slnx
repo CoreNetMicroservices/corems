@@ -38,6 +38,7 @@
   </Folder>
   <Folder Name="/document-ms/test/">
     <Project Path="document-ms/test/CoreMs.DocumentMs.Tests/CoreMs.DocumentMs.Tests.csproj" />
+    <Project Path="document-ms/test/CoreMs.DocumentMs.IntegrationTests/CoreMs.DocumentMs.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/translation-ms/src/">
     <Project Path="translation-ms/src/CoreMs.TranslationMs.Api/CoreMs.TranslationMs.Api.csproj" />

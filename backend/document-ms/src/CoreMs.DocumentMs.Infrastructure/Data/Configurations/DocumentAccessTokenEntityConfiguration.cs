@@ -20,6 +20,6 @@ public class DocumentAccessTokenEntityConfiguration : IEntityTypeConfiguration<D
         builder.Property(e => e.ExpiresAt).IsRequired();
         builder.Property(e => e.IsRevoked).IsRequired().HasDefaultValue(false);
         builder.Property(e => e.AccessCount).IsRequired().HasDefaultValue(0);
-        builder.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("NOW()");
+        builder.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("CURRENT_TIMESTAMP");
     }
 }

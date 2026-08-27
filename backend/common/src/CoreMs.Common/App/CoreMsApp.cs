@@ -427,7 +427,7 @@ public static class CoreMsApp
                 throw new InvalidOperationException(
                     "--reseed is destructive and only allowed in the Development environment.");
 
-            await ClearSeedersAsync(app);
+            await TruncateAllTablesAsync<TDbContext>(app);
             await RunSeedersAsync(app);
             app.Logger.LogInformation("Reseed completed successfully.");
             return true;
@@ -458,13 +458,32 @@ public static class CoreMsApp
             await seeder.SeedAsync();
     }
 
-    private static async Task ClearSeedersAsync(WebApplication app)
+    private static async Task TruncateAllTablesAsync<TDbContext>(WebApplication app)
+        where TDbContext : DbContext
     {
         using var scope = app.Services.CreateScope();
-        // Clear in reverse registration order so dependents are removed before dependencies.
-        var seeders = scope.ServiceProvider.GetServices<ICoreMsSeeder>().Reverse();
-        foreach (var seeder in seeders)
-            await seeder.ClearAsync();
+        var db = scope.ServiceProvider.GetRequiredService<TDbContext>();
+        var logger = app.Logger;
+
+        // Collect all table names from the EF model
+        var tables = db.Model.GetEntityTypes()
+            .Select(e => (Schema: e.GetSchema(), Table: e.GetTableName()))
+            .Where(t => t.Table is not null)
+            .Distinct()
+            .ToList();
+
+        if (tables.Count == 0) return;
+
+        // Build a single TRUNCATE statement for all tables (CASCADE handles FKs)
+        var qualifiedNames = tables.Select(t =>
+            t.Schema is null ? $"\"{t.Table}\"" : $"\"{t.Schema}\".\"{t.Table}\"");
+        var sql = $"TRUNCATE TABLE {string.Join(", ", qualifiedNames)} RESTART IDENTITY CASCADE";
+
+        logger.LogWarning("Reseed: truncating all tables ({Count}) in schema", tables.Count);
+
+#pragma warning disable EF1002 // Table names from EF model metadata, not user input
+        await db.Database.ExecuteSqlRawAsync(sql);
+#pragma warning restore EF1002
     }
 }
 

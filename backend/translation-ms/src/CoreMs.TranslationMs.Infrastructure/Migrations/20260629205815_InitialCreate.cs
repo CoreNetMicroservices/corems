@@ -26,7 +26,7 @@ namespace CoreMs.TranslationMs.Infrastructure.Migrations
                     Realm = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     Lang = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
                     Data = table.Column<Dictionary<string, string>>(type: "jsonb", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     UpdatedBy = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>

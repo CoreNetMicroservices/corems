@@ -136,3 +136,19 @@ When adding any new secret or config value to a service via AppHost:
 | Key | Used by |
 |-----|---------|
 | `DocumentLinkSigningKey` | document-ms — signs pre-signed download URLs |
+
+## Production Secrets (Azure Key Vault)
+
+In production, secrets are NOT passed through the pipeline. Services read them directly from
+Azure Key Vault at startup using a system-assigned managed identity.
+
+**How it works:**
+- Terraform sets `KeyVault__Uri` env var on each Container App
+- `AddCoreMsHost()` detects the URI and adds Key Vault as a configuration source
+- The app authenticates via `DefaultAzureCredential` (managed identity)
+- All Key Vault secrets become available as .NET configuration values
+
+**Naming convention:** `Section--Key` in Key Vault maps to `Section:Key` in .NET config.
+
+**Local development is unaffected** — `KeyVault__Uri` is not set locally, so Key Vault is skipped
+and secrets come from Aspire's `WithEnvironment()` as before.

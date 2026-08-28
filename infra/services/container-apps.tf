@@ -46,6 +46,10 @@ resource "azurerm_container_app" "services" {
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
 
+  identity {
+    type = "SystemAssigned"
+  }
+
   registry {
     server               = local.foundation.acr_login_server
     username             = local.foundation.acr_admin_username

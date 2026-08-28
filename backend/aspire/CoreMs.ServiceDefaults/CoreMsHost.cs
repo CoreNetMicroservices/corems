@@ -1,4 +1,5 @@
 using System.Reflection;
+using Azure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,16 @@ public static class CoreMsHost
     /// </summary>
     public static IHostApplicationBuilder AddCoreMsHost(this IHostApplicationBuilder builder)
     {
+        // Add Azure Key Vault as configuration source when KeyVault__Uri is set (production).
+        // Locally, secrets come from Aspire's WithEnvironment() — Key Vault is skipped.
+        var keyVaultUri = builder.Configuration["KeyVault:Uri"];
+        if (!string.IsNullOrWhiteSpace(keyVaultUri))
+        {
+            builder.Configuration.AddAzureKeyVault(
+                new Uri(keyVaultUri),
+                new DefaultAzureCredential());
+        }
+
         var serviceName = builder.Environment.ApplicationName;
         var serviceVersion = Assembly.GetEntryAssembly()?
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion

@@ -48,6 +48,10 @@ output "keyvault_uri" {
   value = azurerm_key_vault.main.vault_uri
 }
 
+output "keyvault_id" {
+  value = azurerm_key_vault.main.id
+}
+
 output "dns_zone_name_servers" {
   value = azurerm_dns_zone.main.name_servers
 }

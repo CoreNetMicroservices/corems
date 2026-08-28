@@ -113,13 +113,60 @@ Key rules:
 
 ## Secrets Reference
 
+### GitHub Secrets (pipeline credentials only)
+
 | Secret | Used by | Purpose |
 |--------|---------|---------|
 | `GITHUB_TOKEN` | CI, Deploy | NuGet package publish/restore |
 | `AZURE_CREDENTIALS` | Deploy | Azure login (service principal JSON) |
+| `AZURE_CLIENT_ID` | Deploy | Service principal for Terraform + az CLI |
+| `AZURE_CLIENT_SECRET` | Deploy | Service principal secret |
+| `AZURE_TENANT_ID` | Deploy | Azure AD tenant |
+| `AZURE_SUBSCRIPTION_ID` | Deploy | Azure subscription |
 | `ACR_LOGIN_SERVER` | Deploy | Azure Container Registry hostname |
 | `SWA_DEPLOYMENT_TOKEN` | Deploy | Static Web App deployment token |
+| `TERRAFORM_STATE_ACCESS_KEY` | Deploy | Storage account key for TF state |
+| `BASE_DOMAIN` | Deploy | Custom domain (e.g., `core-microservices.com`) |
 | `SONAR_TOKEN` | CI | SonarCloud analysis (optional) |
+
+### Azure Key Vault (application secrets)
+
+All application secrets live in Key Vault (`corems-prod-rg-kv`). Services read them at startup
+via managed identity — no secrets flow through the pipeline.
+
+Naming convention: `Section--Key` (double dash maps to `:` in .NET config).
+
+| Key Vault Secret | Maps to Config | Used by |
+|-----------------|----------------|---------|
+| `Jwt--SecretKey` | `Jwt:SecretKey` | All services (JWT validation) |
+| `Jwt--PrivateKeyBase64` | `Jwt:PrivateKeyBase64` | user-ms (RS256 signing) |
+| `Jwt--PublicKeyBase64` | `Jwt:PublicKeyBase64` | user-ms (RS256 verification) |
+| `SocialAuth--Google--ClientId` | `SocialAuth:Google:ClientId` | user-ms |
+| `SocialAuth--Google--ClientSecret` | `SocialAuth:Google:ClientSecret` | user-ms |
+| `SocialAuth--GitHub--ClientId` | `SocialAuth:GitHub:ClientId` | user-ms |
+| `SocialAuth--GitHub--ClientSecret` | `SocialAuth:GitHub:ClientSecret` | user-ms |
+| `SocialAuth--LinkedIn--ClientId` | `SocialAuth:LinkedIn:ClientId` | user-ms |
+| `SocialAuth--LinkedIn--ClientSecret` | `SocialAuth:LinkedIn:ClientSecret` | user-ms |
+| `Mail--Host` | `Mail:Host` | communication-ms |
+| `Mail--Port` | `Mail:Port` | communication-ms |
+| `Mail--Username` | `Mail:Username` | communication-ms |
+| `Mail--Password` | `Mail:Password` | communication-ms |
+| `Mail--DefaultFrom` | `Mail:DefaultFrom` | communication-ms |
+| `DocumentLinkSigningKey` | `DocumentLinkSigningKey` | document-ms |
+
+To add/update secrets:
+```bash
+az keyvault secret set --vault-name corems-prod-rg-kv --name "Jwt--SecretKey" --value "your-value"
+```
+
+### Configuration Split
+
+| What | Source | Mechanism |
+|------|--------|-----------|
+| DB connection string | Terraform (foundation outputs) | Container App env var |
+| Service-to-service URLs | Terraform (Container App FQDNs) | Container App env var |
+| Storage account, Key Vault URI | Terraform (foundation outputs) | Container App env var |
+| JWT secrets, OAuth creds, SMTP | Azure Key Vault | App reads at startup via managed identity |
 
 ## Build Modes
 

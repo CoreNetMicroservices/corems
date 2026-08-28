@@ -14,6 +14,20 @@ resource "azurerm_dns_cname_record" "services" {
   record              = azurerm_container_app.services[each.key].ingress[0].fqdn
 }
 
+# TXT records for Container App custom domain validation
+resource "azurerm_dns_txt_record" "services_validation" {
+  for_each = { for k, v in local.services : k => v if local.domains[k] != "" }
+
+  name                = "asuid.${split(".", local.domains[each.key])[0]}"
+  zone_name           = data.azurerm_dns_zone.main.name
+  resource_group_name = local.foundation.resource_group_name
+  ttl                 = 300
+
+  record {
+    value = azurerm_container_app.services[each.key].custom_domain_verification_id
+  }
+}
+
 # Frontend: apex domain uses an alias A record
 resource "azurerm_dns_a_record" "frontend_apex" {
   count = local.domains["frontend"] == local.foundation.dns_zone_domain ? 1 : 0
@@ -43,6 +57,11 @@ resource "azurerm_container_app_custom_domain" "services" {
 
   name             = local.domains[each.key]
   container_app_id = azurerm_container_app.services[each.key].id
+
+  depends_on = [
+    azurerm_dns_cname_record.services,
+    azurerm_dns_txt_record.services_validation
+  ]
 
   lifecycle {
     ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]

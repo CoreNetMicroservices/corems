@@ -143,6 +143,33 @@ jobs:
           terraform apply -auto-approve \
             -var='image_tags={"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'
 
+      - name: Bind managed certificates to custom domains
+        if: env.TF_VAR_base_domain != ''
+        env:
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+        run: |
+          # Login to Azure CLI (needed for az containerapp commands)
+          az login --service-principal \
+            -u "$ARM_CLIENT_ID" \
+            -p "$ARM_CLIENT_SECRET" \
+            --tenant "$ARM_TENANT_ID"
+          az account set --subscription "$ARM_SUBSCRIPTION_ID"
+
+          DOMAIN="$TF_VAR_base_domain"
+          RG="corems-prod-rg"
+          ENV_NAME="corems-prod-rg-cae"
+
+          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+            SUBDOMAIN="${svc%-ms}-api.${DOMAIN}"
+            echo "Binding managed certificate for $SUBDOMAIN on $svc..."
+            az containerapp hostname bind \
+              --hostname "$SUBDOMAIN" \
+              -g "$RG" \
+              -n "$svc" \
+              --environment "$ENV_NAME" \
+              --validation-method CNAME 2>&1 || echo "Certificate binding for $svc skipped (may already exist)"
+          done
+
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest

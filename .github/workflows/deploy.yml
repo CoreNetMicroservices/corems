@@ -137,6 +137,8 @@ jobs:
 
       - name: Terraform Apply (Services)
         working-directory: infra/services
+        env:
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
         run: |
           terraform apply -auto-approve \
             -var='image_tags={"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'

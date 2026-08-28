@@ -18,7 +18,7 @@ variable "image_tags" {
 
 variable "custom_domains" {
   type        = map(string)
-  description = "Custom domain names for services"
+  description = "Custom domain names for services (computed from base_domain if not overridden)"
   default = {
     frontend         = ""
     user-ms          = ""
@@ -27,4 +27,10 @@ variable "custom_domains" {
     translation-ms   = ""
     template-ms      = ""
   }
+}
+
+variable "base_domain" {
+  type        = string
+  description = "Base domain for the application (e.g., core-microservices.com). Subdomains are derived automatically."
+  default     = ""
 }

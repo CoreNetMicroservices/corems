@@ -8,11 +8,11 @@ image_tags = {
   template-ms      = "latest"
 }
 
-custom_domains = {
-  frontend         = "core-microservices.com"
-  user-ms          = "user-api.core-microservices.com"
-  communication-ms = "communication-api.core-microservices.com"
-  document-ms      = "document-api.core-microservices.com"
-  translation-ms   = "translation-api.core-microservices.com"
-  template-ms      = "template-api.core-microservices.com"
-}
+# Set base_domain to auto-generate all subdomains:
+#   frontend         -> core-microservices.com (apex)
+#   user-ms          -> user-api.core-microservices.com
+#   communication-ms -> communication-api.core-microservices.com
+#   document-ms      -> document-api.core-microservices.com
+#   translation-ms   -> translation-api.core-microservices.com
+#   template-ms      -> template-api.core-microservices.com
+base_domain = "example.com"

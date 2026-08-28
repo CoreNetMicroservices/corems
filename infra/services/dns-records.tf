@@ -3,22 +3,34 @@ data "azurerm_dns_zone" "main" {
   resource_group_name = local.foundation.resource_group_name
 }
 
-# CNAME records for Container Apps
+# CNAME records for Container App services (subdomains)
 resource "azurerm_dns_cname_record" "services" {
-  for_each = { for k, v in local.services : k => v if var.custom_domains[k] != "" }
+  for_each = { for k, v in local.services : k => v if local.domains[k] != "" }
 
-  name                = split(".", var.custom_domains[each.key])[0]
+  name                = split(".", local.domains[each.key])[0]
   zone_name           = data.azurerm_dns_zone.main.name
   resource_group_name = local.foundation.resource_group_name
   ttl                 = 300
   record              = azurerm_container_app.services[each.key].ingress[0].fqdn
 }
 
-# CNAME record for frontend
-resource "azurerm_dns_cname_record" "frontend" {
-  count = var.custom_domains["frontend"] != "" ? 1 : 0
+# Frontend: apex domain uses an alias A record
+resource "azurerm_dns_a_record" "frontend_apex" {
+  count = local.domains["frontend"] == local.foundation.dns_zone_domain ? 1 : 0
 
-  name                = split(".", var.custom_domains["frontend"])[0]
+  name                = "@"
+  zone_name           = data.azurerm_dns_zone.main.name
+  resource_group_name = local.foundation.resource_group_name
+  ttl                 = 300
+
+  target_resource_id = azurerm_static_web_app.frontend.id
+}
+
+# Frontend: subdomain uses a CNAME record (e.g., www.core-microservices.com)
+resource "azurerm_dns_cname_record" "frontend" {
+  count = local.domains["frontend"] != "" && local.domains["frontend"] != local.foundation.dns_zone_domain ? 1 : 0
+
+  name                = split(".", local.domains["frontend"])[0]
   zone_name           = data.azurerm_dns_zone.main.name
   resource_group_name = local.foundation.resource_group_name
   ttl                 = 300
@@ -27,9 +39,9 @@ resource "azurerm_dns_cname_record" "frontend" {
 
 # Custom domain bindings for Container Apps
 resource "azurerm_container_app_custom_domain" "services" {
-  for_each = { for k, v in local.services : k => v if var.custom_domains[k] != "" }
+  for_each = { for k, v in local.services : k => v if local.domains[k] != "" }
 
-  name             = var.custom_domains[each.key]
+  name             = local.domains[each.key]
   container_app_id = azurerm_container_app.services[each.key].id
 
   lifecycle {
@@ -39,9 +51,9 @@ resource "azurerm_container_app_custom_domain" "services" {
 
 # Custom domain for Static Web App
 resource "azurerm_static_web_app_custom_domain" "frontend" {
-  count = var.custom_domains["frontend"] != "" ? 1 : 0
+  count = local.domains["frontend"] != "" ? 1 : 0
 
   static_web_app_id = azurerm_static_web_app.frontend.id
-  domain_name       = var.custom_domains["frontend"]
-  validation_type   = "cname-delegation"
+  domain_name       = local.domains["frontend"]
+  validation_type   = local.domains["frontend"] == local.foundation.dns_zone_domain ? "dns-txt-token" : "cname-delegation"
 }

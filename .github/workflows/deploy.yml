@@ -161,6 +161,14 @@ jobs:
 
           for svc in user-ms communication-ms document-ms translation-ms template-ms; do
             SUBDOMAIN="${svc%-ms}-api.${DOMAIN}"
+
+            # Check if certificate is already bound
+            BINDING=$(az containerapp hostname list -g "$RG" -n "$svc" --query "[?name=='$SUBDOMAIN'].bindingType" -o tsv 2>/dev/null)
+            if [ "$BINDING" == "SniEnabled" ]; then
+              echo "✓ $SUBDOMAIN already has certificate bound, skipping."
+              continue
+            fi
+
             echo "Binding managed certificate for $SUBDOMAIN on $svc..."
             az containerapp hostname bind \
               --hostname "$SUBDOMAIN" \

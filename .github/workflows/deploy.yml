@@ -170,20 +170,37 @@ jobs:
           for svc in user-ms communication-ms document-ms translation-ms template-ms; do
             SUBDOMAIN="${svc%-ms}-api.${DOMAIN}"
 
-            # Check if certificate is already bound
+            # Idempotent: skip if certificate is already bound (survives repeat runs)
             BINDING=$(az containerapp hostname list -g "$RG" -n "$svc" --query "[?name=='$SUBDOMAIN'].bindingType" -o tsv 2>/dev/null)
             if [ "$BINDING" == "SniEnabled" ]; then
               echo "✓ $SUBDOMAIN already has certificate bound, skipping."
               continue
             fi
 
+            # Retry to absorb DNS propagation delay on a fresh apply. The asuid TXT + CNAME
+            # records were just created by Terraform and may not have propagated yet, so a
+            # single destroy->apply run converges without needing a second pipeline run.
             echo "Binding managed certificate for $SUBDOMAIN on $svc..."
-            az containerapp hostname bind \
-              --hostname "$SUBDOMAIN" \
-              -g "$RG" \
-              -n "$svc" \
-              --environment "$ENV_NAME" \
-              --validation-method CNAME 2>&1 || echo "Certificate binding for $svc skipped (may already exist)"
+            BOUND=false
+            for attempt in 1 2 3 4 5 6; do
+              if az containerapp hostname bind \
+                   --hostname "$SUBDOMAIN" \
+                   -g "$RG" \
+                   -n "$svc" \
+                   --environment "$ENV_NAME" \
+                   --validation-method CNAME 2>&1; then
+                BOUND=true
+                echo "✓ Bound $SUBDOMAIN on attempt $attempt"
+                break
+              fi
+              echo "Attempt $attempt failed (likely DNS not propagated yet), waiting 30s..."
+              sleep 30
+            done
+
+            if [ "$BOUND" != "true" ]; then
+              echo "::error::Failed to bind certificate for $SUBDOMAIN after retries"
+              exit 1
+            fi
           done
 
   deploy-frontend:

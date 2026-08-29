@@ -30,10 +30,14 @@ BEFORE=$(executions_json | jq -r '[.[].name] | @csv' 2>/dev/null || echo "")
 # Do NOT suppress stderr — if start fails we need to see why.
 echo "Starting job execution..."
 set +e
+# command = entrypoint (dotnet + dll), args = the db-admin flag. The flag must go through
+# --args (not --command), AND use the --args=... equals form: a value that begins with "--"
+# is otherwise mistaken by az's argparse for another CLI option ("unrecognized arguments").
 START_OUT=$(az containerapp job start \
   --name "$JOB" \
   --resource-group "$RG" \
-  --command "dotnet" "$DLL" "$ARG" \
+  --command "dotnet" "$DLL" \
+  --args="$ARG" \
   -o json 2>&1)
 START_RC=$?
 set -e

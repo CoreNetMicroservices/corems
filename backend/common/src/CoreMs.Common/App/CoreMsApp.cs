@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using CoreMs.Common.Data;
 using CoreMs.Common.Extensions;
 using CoreMs.Common.Middleware;
@@ -75,6 +76,9 @@ public sealed class CoreMsAppOptions
 
 public static class CoreMsApp
 {
+    private static readonly Regex SafeSchemaNameRegex =
+        new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+
     /// <summary>
     /// Registers all CoreMS service defaults: CORS, controllers, Swagger, exception handling,
     /// security, and JWT Bearer consumer auth.
@@ -447,6 +451,19 @@ public static class CoreMsApp
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TDbContext>();
+
+        // Create the model's schema before EF's history table, whose unqualified name would
+        // otherwise resolve against a Search Path pointing at a not-yet-created schema (3F000).
+        var schema = db.Model.GetDefaultSchema();
+        if (!string.IsNullOrEmpty(schema))
+        {
+            if (!SafeSchemaNameRegex.IsMatch(schema))
+                throw new InvalidOperationException($"Unsafe schema name for migration: '{schema}'.");
+
+            var sql = $"CREATE SCHEMA IF NOT EXISTS \"{schema}\";";
+            await db.Database.ExecuteSqlRawAsync(sql);
+        }
+
         await db.Database.MigrateAsync();
     }
 

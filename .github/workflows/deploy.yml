@@ -148,8 +148,19 @@ jobs:
         env:
           TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
         run: |
-          terraform apply -auto-approve \
-            -var='image_tags={"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'
+          IMAGE_TAGS='{"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'
+
+          # Phase 1: ensure the container apps (and their SystemAssigned identity) are applied
+          # first. On an existing deployment whose apps predate the identity block, this
+          # populates identity[0] in state so the role-assignment plan can read principal_id.
+          # -target is safe here and is a no-op on a clean apply where everything is created
+          # together anyway.
+          terraform apply -auto-approve -var="image_tags=$IMAGE_TAGS" \
+            $(for svc in user-ms communication-ms document-ms translation-ms template-ms; do \
+                echo -n "-target=azurerm_container_app.services[\"$svc\"] "; done)
+
+          # Phase 2: full apply — creates role assignments, DNS records, everything else.
+          terraform apply -auto-approve -var="image_tags=$IMAGE_TAGS"
 
       - name: Bind managed certificates to custom domains
         if: env.TF_VAR_base_domain != ''

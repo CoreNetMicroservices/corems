@@ -4,7 +4,7 @@ data "azurerm_key_vault" "main" {
   resource_group_name = local.foundation.resource_group_name
 }
 
-# Grant each Container App's managed identity read access to Key Vault secrets
+# Grant each Container App's managed identity read access to Key Vault secrets.
 resource "azurerm_role_assignment" "container_app_keyvault" {
   for_each = local.services
 

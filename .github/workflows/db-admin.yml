@@ -132,6 +132,8 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.select-services.outputs.services) }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -211,11 +213,11 @@ jobs:
 
       - name: Migrate
         if: inputs.migrate == true
-        run: ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--migrate"
+        run: bash ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--migrate"
 
       - name: Seed
         if: inputs.seed == true
-        run: ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--seed"
+        run: bash ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--seed"
 
       # Delete the job only when everything above succeeded. On failure the job (and its
       # execution history) is left in place so you can inspect it in the Azure portal and

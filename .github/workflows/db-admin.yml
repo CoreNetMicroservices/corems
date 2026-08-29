@@ -1,0 +1,230 @@
+name: DB Admin (Migrate / Seed)
+
+# Manually run database migrations and/or seeding against the deployed Azure Container Apps.
+# Pick which services to target and which operation(s) to run.
+#
+# Mechanism: for each selected service we create/update a manually-triggered Container Apps Job
+# that runs the SAME image as the service with the --migrate / --seed arg, then start it and
+# poll to completion. A Job is used (not `az containerapp exec`) because exec is interactive-only
+# and does not work reliably in CI, nor does it surface the command's exit code.
+#
+# The Job reuses the service's own database connection string by copying the container app's
+# ConnectionStrings__corems env var onto the job. Order per service is migrate -> seed.
+#
+# Job lifecycle: the job is (re)created fresh at the start of each run and deleted at the end
+# ONLY if the run succeeded. On failure it is left in place so you can inspect the execution in
+# the Azure portal and re-query `az containerapp job logs show`. A leftover failed job is
+# harmless — the next run deletes and recreates it before use.
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrate:
+        description: 'Run migrations (--migrate)'
+        type: boolean
+        default: true
+      seed:
+        description: 'Run seeding (--seed)'
+        type: boolean
+        default: false
+      user-ms:
+        description: 'Target: user-ms'
+        type: boolean
+        default: false
+      communication-ms:
+        description: 'Target: communication-ms'
+        type: boolean
+        default: false
+      document-ms:
+        description: 'Target: document-ms'
+        type: boolean
+        default: false
+      translation-ms:
+        description: 'Target: translation-ms'
+        type: boolean
+        default: false
+      template-ms:
+        description: 'Target: template-ms'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  RESOURCE_GROUP: "corems-prod-rg"
+  CONTAINER_APP_ENV: "corems-prod-rg-cae"
+
+jobs:
+  select-services:
+    name: Resolve Selection
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build target list from checkboxes
+        id: pick
+        run: |
+          set -euo pipefail
+          SELECTED="[]"
+          add() { SELECTED=$(echo "$SELECTED" | jq --arg s "$1" '. + [$s]'); }
+
+          if [ "${{ inputs.user-ms }}" == "true" ]; then add "user-ms"; fi
+          if [ "${{ inputs.communication-ms }}" == "true" ]; then add "communication-ms"; fi
+          if [ "${{ inputs.document-ms }}" == "true" ]; then add "document-ms"; fi
+          if [ "${{ inputs.translation-ms }}" == "true" ]; then add "translation-ms"; fi
+          if [ "${{ inputs.template-ms }}" == "true" ]; then add "template-ms"; fi
+
+          echo "Selected services: $SELECTED"
+          echo "services=$(echo "$SELECTED" | jq -c .)" >> "$GITHUB_OUTPUT"
+
+      # Discover the real service folders (backend/*-ms) and cross-check them against the
+      # statically-defined checkboxes. workflow_dispatch inputs must be declared in YAML, so
+      # the checkboxes can't be generated from folders — but this guard keeps them honest:
+      #   - a ticked service whose folder is gone => hard error (typo / removed service)
+      #   - a discovered service with no matching checkbox => warning (someone added a service
+      #     and needs to add its checkbox here)
+      - name: Cross-check checkboxes against backend/*-ms folders
+        run: |
+          set -euo pipefail
+          KNOWN="user-ms communication-ms document-ms translation-ms template-ms"
+          DISCOVERED=$(for d in backend/*-ms/; do basename "$d"; done | sort)
+          echo "Discovered service folders:"; echo "$DISCOVERED" | sed 's/^/  - /'
+
+          # Warn about folders that exist but have no checkbox wired up.
+          for svc in $DISCOVERED; do
+            case " $KNOWN " in
+              *" $svc "*) : ;;
+              *) echo "::warning::Service '$svc' exists under backend/ but has no checkbox in this workflow. Add an input + a line in 'Build target list' to target it." ;;
+            esac
+          done
+
+          # Hard-fail if a *selected* service no longer has a folder.
+          for svc in $(echo '${{ steps.pick.outputs.services }}' | jq -r '.[]'); do
+            if [ ! -d "backend/$svc" ]; then
+              echo "::error::Selected service '$svc' has no backend/$svc folder. It may have been renamed or removed."
+              exit 1
+            fi
+          done
+
+      - name: Validate selection
+        run: |
+          if [ "${{ inputs.migrate }}" != "true" ] && [ "${{ inputs.seed }}" != "true" ]; then
+            echo "::error::No operation selected. Enable at least one of migrate / seed."
+            exit 1
+          fi
+          if [ "${{ steps.pick.outputs.services }}" == "[]" ]; then
+            echo "::error::No services selected. Enable at least one service checkbox."
+            exit 1
+          fi
+
+  db-admin:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: select-services
+    if: needs.select-services.outputs.services != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        service: ${{ fromJson(needs.select-services.outputs.services) }}
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Resolve image, DLL name and DB connection string
+        id: resolve
+        run: |
+          set -euo pipefail
+          SVC="${{ matrix.service }}"
+
+          # DLL: user-ms -> CoreMs.UserMs.Api.dll (strip -ms, PascalCase words, append Ms.Api.dll)
+          NAME="${SVC%-ms}"
+          PASCAL=$(echo "$NAME" | sed -E 's/(^|-)([a-z])/\U\2/g')
+          echo "dll=CoreMs.${PASCAL}Ms.Api.dll" >> "$GITHUB_OUTPUT"
+
+          # Image currently deployed for this service — run the exact same build.
+          IMAGE=$(az containerapp show --name "$SVC" --resource-group "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].image" -o tsv)
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+          # Database connection string, copied from the running container app's env var.
+          CONN=$(az containerapp show --name "$SVC" --resource-group "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].env[?name=='ConnectionStrings__corems'].value | [0]" -o tsv)
+          if [ -z "$CONN" ]; then
+            echo "::error::Could not read ConnectionStrings__corems from container app '$SVC'."
+            exit 1
+          fi
+          # Mask so it never appears in logs.
+          echo "::add-mask::$CONN"
+          echo "conn=$CONN" >> "$GITHUB_OUTPUT"
+
+          # ACR registry server (host) from the image reference, for job registry auth.
+          ACR_SERVER="${IMAGE%%/*}"
+          echo "acr=$ACR_SERVER" >> "$GITHUB_OUTPUT"
+
+          # ACR admin credentials (registry has admin_enabled=true; container apps use the
+          # same auth). Registry name is the host minus the .azurecr.io suffix.
+          ACR_NAME="${ACR_SERVER%%.*}"
+          ACR_USER=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
+          ACR_PASS=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+          echo "::add-mask::$ACR_PASS"
+          echo "acr_user=$ACR_USER" >> "$GITHUB_OUTPUT"
+          echo "acr_pass=$ACR_PASS" >> "$GITHUB_OUTPUT"
+
+      # The job is disposable infrastructure: delete any prior definition and recreate it fresh
+      # so it always runs the currently-deployed image with the current connection string.
+      # (job update has no --set-secrets flag, so recreate is simpler and avoids drift.)
+      - name: (Re)create db-admin job
+        run: |
+          set -euo pipefail
+          JOB="${{ matrix.service }}-dbadmin"
+
+          if az containerapp job show --name "$JOB" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            echo "Deleting existing job $JOB"
+            az containerapp job delete --name "$JOB" --resource-group "$RESOURCE_GROUP" --yes >/dev/null
+          fi
+
+          echo "Creating job $JOB"
+          az containerapp job create \
+            --name "$JOB" \
+            --resource-group "$RESOURCE_GROUP" \
+            --environment "$CONTAINER_APP_ENV" \
+            --trigger-type Manual \
+            --replica-timeout 600 \
+            --replica-retry-limit 0 \
+            --parallelism 1 \
+            --replica-completion-count 1 \
+            --cpu 0.5 --memory 1Gi \
+            --image "${{ steps.resolve.outputs.image }}" \
+            --container-name dbadmin \
+            --registry-server "${{ steps.resolve.outputs.acr }}" \
+            --registry-username "${{ steps.resolve.outputs.acr_user }}" \
+            --registry-password "${{ steps.resolve.outputs.acr_pass }}" \
+            --secrets "db-conn=${{ steps.resolve.outputs.conn }}" \
+            --env-vars "ConnectionStrings__corems=secretref:db-conn" >/dev/null
+
+      - name: Migrate
+        if: inputs.migrate == true
+        run: ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--migrate"
+
+      - name: Seed
+        if: inputs.seed == true
+        run: ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--seed"
+
+      # Delete the job only when everything above succeeded. On failure the job (and its
+      # execution history) is left in place so you can inspect it in the Azure portal and
+      # re-run `az containerapp job logs show`. The step logs above already contain the run
+      # output either way; Log Analytics also retains console logs after deletion.
+      - name: Cleanup db-admin job (only on success)
+        if: success()
+        run: |
+          set -euo pipefail
+          JOB="${{ matrix.service }}-dbadmin"
+          echo "Deleting $JOB (run succeeded)."
+          az containerapp job delete --name "$JOB" --resource-group "$RESOURCE_GROUP" --yes >/dev/null

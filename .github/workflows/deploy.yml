@@ -135,6 +135,14 @@ jobs:
           terraform import azurerm_container_app_environment.main \
             "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/$RG-cae" || true
 
+          # Remove the deprecated custom-domain resources from state. These are now managed
+          # out-of-band via `az containerapp hostname bind`. Removing (not destroying) avoids
+          # the managedCertificates/ ID parse error (provider bug #27362) while keeping the
+          # actual Azure binding intact.
+          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+            terraform state rm "azurerm_container_app_custom_domain.services[\"$svc\"]" || echo "No custom domain state for $svc"
+          done
+
       - name: Terraform Apply (Services)
         working-directory: infra/services
         env:

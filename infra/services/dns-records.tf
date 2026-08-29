@@ -51,22 +51,12 @@ resource "azurerm_dns_cname_record" "frontend" {
   record              = azurerm_static_web_app.frontend.default_host_name
 }
 
-# Custom domain bindings for Container Apps
-resource "azurerm_container_app_custom_domain" "services" {
-  for_each = { for k, v in local.services : k => v if local.domains[k] != "" }
-
-  name             = local.domains[each.key]
-  container_app_id = azurerm_container_app.services[each.key].id
-
-  depends_on = [
-    azurerm_dns_cname_record.services,
-    azurerm_dns_txt_record.services_validation
-  ]
-
-  lifecycle {
-    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
-  }
-}
+# NOTE: Container App custom domain binding + managed certificate is handled by the
+# "Bind managed certificates to custom domains" step in deploy.yml via `az containerapp
+# hostname bind`. The azurerm_container_app_custom_domain resource is intentionally NOT
+# used here because it conflicts with CLI-managed certificates and cannot parse the
+# managedCertificates/ ID format (provider bug hashicorp/terraform-provider-azurerm#27362).
+# Terraform only provisions the DNS records (CNAME + asuid TXT) needed for validation.
 
 # Custom domain for Static Web App
 resource "azurerm_static_web_app_custom_domain" "frontend" {

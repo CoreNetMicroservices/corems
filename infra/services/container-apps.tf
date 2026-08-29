@@ -130,4 +130,11 @@ resource "azurerm_container_app" "services" {
     name  = "storage-key"
     value = local.foundation.storage_primary_access_key
   }
+
+  # Custom domains + managed certificates are bound out-of-band via `az containerapp
+  # hostname bind` in the deploy pipeline. Ignore ingress custom_domain drift so Terraform
+  # doesn't try to reconcile (and fail parsing) the CLI-managed certificate bindings.
+  lifecycle {
+    ignore_changes = [ingress[0].custom_domain]
+  }
 }

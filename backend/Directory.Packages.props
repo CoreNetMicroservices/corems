@@ -31,6 +31,7 @@
   <ItemGroup Label="MassTransit (Messaging)">
     <PackageVersion Include="MassTransit" Version="8.4.0" />
     <PackageVersion Include="MassTransit.RabbitMQ" Version="8.4.0" />
+    <PackageVersion Include="MassTransit.Azure.ServiceBus.Core" Version="8.4.0" />
   </ItemGroup>
 
   <ItemGroup Label="Validation">

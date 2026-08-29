@@ -7,6 +7,3 @@ image_tags = {
   translation-ms   = "latest"
   template-ms      = "latest"
 }
-
-# Custom domains are optional and NOT configured here. To attach a custom domain,
-# run infra/scripts/setup-custom-domain.sh after deployment. See infra/scripts/README.md.

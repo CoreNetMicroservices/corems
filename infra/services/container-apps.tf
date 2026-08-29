@@ -68,9 +68,10 @@ resource "azurerm_container_app" "services" {
         value = "Host=${local.foundation.postgres_fqdn};Port=5432;Database=corems;Username=${local.foundation.postgres_admin_username};Password=${local.foundation.postgres_admin_password};SSL Mode=Require;Trust Server Certificate=true;Search Path=${each.value.db_name}"
       }
 
-      # Service Bus
+      # Service Bus — the app reads ConnectionStrings:servicebus (AddCoreMsMessaging selects
+      # the Azure Service Bus transport when this is present).
       env {
-        name        = "ConnectionStrings__ServiceBus"
+        name        = "ConnectionStrings__servicebus"
         secret_name = "servicebus-connection"
       }
 

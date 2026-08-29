@@ -27,13 +27,29 @@ public static class MessagingExtensions
         {
             configureConsumers?.Invoke(x);
 
-            var connectionString = configuration.GetConnectionString("rabbitmq");
+            // Transport is auto-selected by which connection string is present:
+            //   ConnectionStrings:servicebus -> Azure Service Bus (production)
+            //   ConnectionStrings:rabbitmq   -> RabbitMQ (local dev)
+            //   neither                      -> in-memory (tests / minimal local)
+            var serviceBusConnectionString = configuration.GetConnectionString("servicebus");
+            var rabbitMqConnectionString = configuration.GetConnectionString("rabbitmq");
 
-            if (!string.IsNullOrEmpty(connectionString))
+            if (!string.IsNullOrEmpty(serviceBusConnectionString))
+            {
+                x.UsingAzureServiceBus((context, cfg) =>
+                {
+                    cfg.Host(serviceBusConnectionString);
+                    cfg.ConfigureEndpoints(context);
+
+                    cfg.ConfigurePublish(pipeline =>
+                        pipeline.UseExecute(publishContext => SetCorrelationId(publishContext, context)));
+                });
+            }
+            else if (!string.IsNullOrEmpty(rabbitMqConnectionString))
             {
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host(new Uri(connectionString));
+                    cfg.Host(new Uri(rabbitMqConnectionString));
                     cfg.ConfigureEndpoints(context);
 
                     // Propagate correlation ID from HTTP context to message headers

@@ -18,29 +18,60 @@ RG="${RESOURCE_GROUP:?RESOURCE_GROUP env var is required}"
 
 echo "==> $JOB : dotnet $DLL $ARG"
 
+# Record which executions already exist so we can identify the new one afterwards, regardless
+# of what `job start` returns (its output shape varies across CLI versions).
+executions_json() {
+  az containerapp job execution list --name "$JOB" --resource-group "$RG" -o json 2>/dev/null || echo '[]'
+}
+BEFORE=$(executions_json | jq -r '[.[].name] | @csv' 2>/dev/null || echo "")
+
 # Start the execution, overriding the startup command for this run only. The job image's
 # ENTRYPOINT is `dotnet <dll>`; we replace the whole command so the db-admin arg is applied.
-EXEC_NAME=$(az containerapp job start \
+# Do NOT suppress stderr — if start fails we need to see why.
+echo "Starting job execution..."
+set +e
+START_OUT=$(az containerapp job start \
   --name "$JOB" \
   --resource-group "$RG" \
   --command "dotnet" "$DLL" "$ARG" \
-  --query "name" -o tsv 2>/dev/null || true)
+  -o json 2>&1)
+START_RC=$?
+set -e
+echo "start rc=$START_RC; output:"
+echo "$START_OUT"
 
-# Fallback: some CLI versions don't return the execution name from `start`; take the latest.
-if [ -z "$EXEC_NAME" ] || [ "$EXEC_NAME" == "null" ]; then
-  echo "start did not return an execution name; resolving latest execution..."
-  sleep 3
-  EXEC_NAME=$(az containerapp job execution list \
-    --name "$JOB" \
-    --resource-group "$RG" \
-    --query "[0].name" -o tsv 2>/dev/null || true)
-fi
-
-if [ -z "$EXEC_NAME" ] || [ "$EXEC_NAME" == "null" ]; then
-  echo "::error::Failed to start or resolve a job execution for $JOB"
+if [ "$START_RC" -ne 0 ]; then
+  echo "::error::'az containerapp job start' failed for $JOB (rc=$START_RC). See output above."
   exit 1
 fi
-echo "Started execution: $EXEC_NAME"
+
+# Prefer the name from the start response; fall back to diffing the execution list.
+EXEC_NAME=$(echo "$START_OUT" | jq -r '.name // empty' 2>/dev/null || true)
+
+if [ -z "$EXEC_NAME" ]; then
+  echo "start response had no .name; resolving the newly-created execution..."
+  for attempt in 1 2 3 4 5 6; do
+    sleep 5
+    AFTER=$(executions_json)
+    # Pick the most recently started execution that wasn't present before.
+    EXEC_NAME=$(echo "$AFTER" | jq -r --arg before "$BEFORE" '
+      map(select(($before | split(",") | map(gsub("\"";"")) | index(.name)) | not))
+      | sort_by(.properties.startTime) | reverse | .[0].name // empty' 2>/dev/null || true)
+    [ -n "$EXEC_NAME" ] && break
+    # If nothing new is detectable, fall back to the latest overall.
+    EXEC_NAME=$(echo "$AFTER" | jq -r 'sort_by(.properties.startTime) | reverse | .[0].name // empty' 2>/dev/null || true)
+    [ -n "$EXEC_NAME" ] && break
+    echo "  attempt $attempt: no execution yet..."
+  done
+fi
+
+if [ -z "$EXEC_NAME" ] || [ "$EXEC_NAME" == "null" ]; then
+  echo "::error::Could not resolve a job execution name for $JOB after start."
+  echo "Current executions:"
+  executions_json | jq -r '.[] | "  \(.name)\t\(.properties.status)\t\(.properties.startTime)"' 2>/dev/null || true
+  exit 1
+fi
+echo "Resolved execution: $EXEC_NAME"
 
 # Poll for terminal status (Succeeded / Failed). Timeout after ~12 min.
 STATUS="Running"

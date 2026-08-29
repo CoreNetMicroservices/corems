@@ -61,9 +61,10 @@ resource "azurerm_container_app" "services" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      # Database connection
+      # Database connection — the app reads ConnectionStrings:corems (see appsettings.json
+      # and AddCoreMsDatabase / health checks), so the env var must be named accordingly.
       env {
-        name  = "ConnectionStrings__DefaultConnection"
+        name  = "ConnectionStrings__corems"
         value = "Host=${local.foundation.postgres_fqdn};Port=5432;Database=corems;Username=${local.foundation.postgres_admin_username};Password=${local.foundation.postgres_admin_password};SSL Mode=Require;Trust Server Certificate=true;Search Path=${each.value.db_name}"
       }
 
@@ -73,14 +74,15 @@ resource "azurerm_container_app" "services" {
         secret_name = "servicebus-connection"
       }
 
-      # Blob Storage
+      # Blob Storage (Azure). document-ms selects AzureBlobStorageService when
+      # Storage:ConnectionString is set (see StorageOptions.UseAzureBlob).
       env {
-        name  = "Storage__AccountName"
-        value = local.foundation.storage_account_name
+        name        = "Storage__ConnectionString"
+        secret_name = "storage-connection"
       }
       env {
-        name        = "Storage__AccessKey"
-        secret_name = "storage-key"
+        name  = "Storage__Container"
+        value = "documents"
       }
 
       # Key Vault
@@ -117,8 +119,8 @@ resource "azurerm_container_app" "services" {
   }
 
   secret {
-    name  = "storage-key"
-    value = local.foundation.storage_primary_access_key
+    name  = "storage-connection"
+    value = data.azurerm_storage_account.main.primary_connection_string
   }
 
   # Custom domains + managed certificates are bound out-of-band via `az containerapp

@@ -18,6 +18,12 @@ permissions:
 
 env:
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  # Single source of truth for the service list. Space-separated for bash loops.
+  # JSON and image_tags forms are derived from this at runtime.
+  SERVICES: "user-ms communication-ms document-ms translation-ms template-ms"
+  RESOURCE_GROUP: "corems-prod-rg"
+  CONTAINER_APP_ENV: "corems-prod-rg-cae"
+  IMAGE_TAG: "latest"
 
 jobs:
   detect-changes:
@@ -34,7 +40,8 @@ jobs:
       - name: Determine services to build
         id: filter
         run: |
-          ALL_SERVICES='["user-ms","communication-ms","document-ms","translation-ms","template-ms"]'
+          # Derive the JSON array of all services from the space-separated env var
+          ALL_SERVICES=$(printf '%s\n' $SERVICES | jq -R . | jq -sc .)
 
           if [ "${{ inputs.deploy-all }}" == "true" ]; then
             echo "Deploy all services"
@@ -44,22 +51,22 @@ jobs:
 
           # Compare with last deployed commit (or HEAD~1 as fallback)
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
-          SERVICES="[]"
+          CHANGED="[]"
 
-          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+          for svc in $SERVICES; do
             if echo "$CHANGED_FILES" | grep -q "^backend/$svc/\|^backend/common/\|^backend/Directory"; then
-              SERVICES=$(echo "$SERVICES" | jq --arg s "$svc" '. + [$s]')
+              CHANGED=$(echo "$CHANGED" | jq --arg s "$svc" '. + [$s]')
             fi
           done
 
           # If nothing detected but workflow was triggered, build all
-          if [ "$SERVICES" == "[]" ]; then
+          if [ "$CHANGED" == "[]" ]; then
             echo "No specific changes detected, building all"
-            SERVICES="$ALL_SERVICES"
+            CHANGED="$ALL_SERVICES"
           fi
 
-          echo "Services to build: $SERVICES"
-          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Services to build: $CHANGED"
+          echo "services=$(echo "$CHANGED" | jq -c .)" >> $GITHUB_OUTPUT
 
   build-and-push:
     name: Build ${{ matrix.service }}
@@ -84,11 +91,11 @@ jobs:
       - name: Build and push image
         run: |
           docker build \
-            -t ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:latest \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:${{ env.IMAGE_TAG }} \
             -f backend/${{ matrix.service }}/Dockerfile \
             --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
             backend/
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/corems-${{ matrix.service }}:${{ env.IMAGE_TAG }}
 
   deploy-infrastructure:
     name: Terraform Apply
@@ -120,10 +127,10 @@ jobs:
         continue-on-error: true
         run: |
           SUB_ID="$ARM_SUBSCRIPTION_ID"
-          RG="corems-prod-rg"
+          RG="$RESOURCE_GROUP"
 
           # Import container apps if they exist but aren't in state
-          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+          for svc in $SERVICES; do
             echo "Importing $svc..."
             terraform import "azurerm_container_app.services[\"$svc\"]" \
               "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/containerApps/$svc" || echo "Import of $svc skipped (already in state or doesn't exist)"
@@ -133,13 +140,13 @@ jobs:
           terraform import azurerm_log_analytics_workspace.main \
             "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.OperationalInsights/workspaces/$RG-logs" || true
           terraform import azurerm_container_app_environment.main \
-            "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/$RG-cae" || true
+            "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/$CONTAINER_APP_ENV" || true
 
           # Remove the deprecated custom-domain resources from state. These are now managed
           # out-of-band via `az containerapp hostname bind`. Removing (not destroying) avoids
           # the managedCertificates/ ID parse error (provider bug #27362) while keeping the
           # actual Azure binding intact.
-          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+          for svc in $SERVICES; do
             terraform state rm "azurerm_container_app_custom_domain.services[\"$svc\"]" || echo "No custom domain state for $svc"
           done
 
@@ -148,15 +155,16 @@ jobs:
         env:
           TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
         run: |
-          IMAGE_TAGS='{"user-ms":"latest","communication-ms":"latest","document-ms":"latest","translation-ms":"latest","template-ms":"latest"}'
+          # Build image_tags JSON ({"user-ms":"latest",...}) from the service list + tag
+          IMAGE_TAGS=$(for svc in $SERVICES; do echo "$svc $IMAGE_TAG"; done \
+            | jq -Rn '[inputs | split(" ") | {(.[0]): .[1]}] | add | tojson' -r)
 
           # Phase 1: ensure the container apps (and their SystemAssigned identity) are applied
           # first. On an existing deployment whose apps predate the identity block, this
           # populates identity[0] in state so the role-assignment plan can read principal_id.
-          # -target is safe here and is a no-op on a clean apply where everything is created
-          # together anyway.
+          # -target is safe and is a no-op on a clean apply where everything is created together.
           terraform apply -auto-approve -var="image_tags=$IMAGE_TAGS" \
-            $(for svc in user-ms communication-ms document-ms translation-ms template-ms; do \
+            $(for svc in $SERVICES; do \
                 echo -n "-target=azurerm_container_app.services[\"$svc\"] "; done)
 
           # Phase 2: full apply — creates role assignments, DNS records, everything else.
@@ -175,10 +183,10 @@ jobs:
           az account set --subscription "$ARM_SUBSCRIPTION_ID"
 
           DOMAIN="$TF_VAR_base_domain"
-          RG="corems-prod-rg"
-          ENV_NAME="corems-prod-rg-cae"
+          RG="$RESOURCE_GROUP"
+          ENV_NAME="$CONTAINER_APP_ENV"
 
-          for svc in user-ms communication-ms document-ms translation-ms template-ms; do
+          for svc in $SERVICES; do
             SUBDOMAIN="${svc%-ms}-api.${DOMAIN}"
 
             # Idempotent: skip if certificate is already bound (survives repeat runs)

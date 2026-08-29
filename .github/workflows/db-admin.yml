@@ -204,7 +204,7 @@ jobs:
             --replica-completion-count 1 \
             --cpu 0.5 --memory 1Gi \
             --image "${{ steps.resolve.outputs.image }}" \
-            --container-name dbadmin \
+            --container-name "$JOB" \
             --registry-server "${{ steps.resolve.outputs.acr }}" \
             --registry-username "${{ steps.resolve.outputs.acr_user }}" \
             --registry-password "${{ steps.resolve.outputs.acr_pass }}" \

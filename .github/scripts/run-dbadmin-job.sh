@@ -33,9 +33,14 @@ set +e
 # command = entrypoint (dotnet + dll), args = the db-admin flag. The flag must go through
 # --args (not --command), AND use the --args=... equals form: a value that begins with "--"
 # is otherwise mistaken by az's argparse for another CLI option ("unrecognized arguments").
+#
+# --container-name must match the container defined on the job (we create it with name == job
+# name). Without it, start defaults the container name to the job name and, if that differs
+# from the template container, errors with "must have an 'Image' property specified".
 START_OUT=$(az containerapp job start \
   --name "$JOB" \
   --resource-group "$RG" \
+  --container-name "$JOB" \
   --command "dotnet" "$DLL" \
   --args="$ARG" \
   -o json 2>&1)
@@ -94,13 +99,13 @@ done
 
 # Fetch logs for the execution (best effort — Log Analytics ingestion can lag, so this is
 # supplementary; the authoritative pass/fail signal is the execution status above).
-# --container matches --container-name set at job creation.
+# --container matches --container-name set at job creation (== job name).
 echo "::group::$JOB $ARG logs"
 az containerapp job logs show \
   --name "$JOB" \
   --resource-group "$RG" \
   --execution "$EXEC_NAME" \
-  --container dbadmin \
+  --container "$JOB" \
   --tail 300 --format text 2>/dev/null || echo "(logs not available via Log Analytics yet)"
 echo "::endgroup::"
 

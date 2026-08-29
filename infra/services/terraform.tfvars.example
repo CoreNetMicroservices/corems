@@ -8,11 +8,5 @@ image_tags = {
   template-ms      = "latest"
 }
 
-# Set base_domain to auto-generate all subdomains:
-#   frontend         -> core-microservices.com (apex)
-#   user-ms          -> user-api.core-microservices.com
-#   communication-ms -> communication-api.core-microservices.com
-#   document-ms      -> document-api.core-microservices.com
-#   translation-ms   -> translation-api.core-microservices.com
-#   template-ms      -> template-api.core-microservices.com
-base_domain = "example.com"
+# Custom domains are optional and NOT configured here. To attach a custom domain,
+# run infra/scripts/setup-custom-domain.sh after deployment. See infra/scripts/README.md.

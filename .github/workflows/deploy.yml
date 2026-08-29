@@ -142,18 +142,22 @@ jobs:
           terraform import azurerm_container_app_environment.main \
             "/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/$CONTAINER_APP_ENV" || true
 
-          # Remove the deprecated custom-domain resources from state. These are now managed
-          # out-of-band via `az containerapp hostname bind`. Removing (not destroying) avoids
-          # the managedCertificates/ ID parse error (provider bug #27362) while keeping the
-          # actual Azure binding intact.
+          # Custom domains are now managed entirely by infra/scripts/setup-custom-domain.sh
+          # (out-of-band). Remove any previously-managed domain resources from state so
+          # Terraform neither destroys the live DNS records nor chokes on the managed cert ID
+          # (provider bug #27362). Removing from state leaves the actual Azure resources intact.
           for svc in $SERVICES; do
-            terraform state rm "azurerm_container_app_custom_domain.services[\"$svc\"]" || echo "No custom domain state for $svc"
+            terraform state rm "azurerm_container_app_custom_domain.services[\"$svc\"]" 2>/dev/null || true
+            terraform state rm "azurerm_dns_cname_record.services[\"$svc\"]" 2>/dev/null || true
+            terraform state rm "azurerm_dns_txt_record.services_validation[\"$svc\"]" 2>/dev/null || true
           done
+          terraform state rm 'azurerm_dns_a_record.frontend_apex[0]' 2>/dev/null || true
+          terraform state rm 'azurerm_dns_cname_record.frontend[0]' 2>/dev/null || true
+          terraform state rm 'azurerm_static_web_app_custom_domain.frontend[0]' 2>/dev/null || true
+          terraform state rm 'data.azurerm_dns_zone.main' 2>/dev/null || true
 
       - name: Terraform Apply (Services)
         working-directory: infra/services
-        env:
-          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
         run: |
           # Build image_tags JSON ({"user-ms":"latest",...}) from the service list + tag
           IMAGE_TAGS=$(for svc in $SERVICES; do echo "$svc $IMAGE_TAG"; done \
@@ -170,57 +174,9 @@ jobs:
           # Phase 2: full apply — creates role assignments, DNS records, everything else.
           terraform apply -auto-approve -var="image_tags=$IMAGE_TAGS"
 
-      - name: Bind managed certificates to custom domains
-        if: env.TF_VAR_base_domain != ''
-        env:
-          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
-        run: |
-          # Login to Azure CLI (needed for az containerapp commands)
-          az login --service-principal \
-            -u "$ARM_CLIENT_ID" \
-            -p "$ARM_CLIENT_SECRET" \
-            --tenant "$ARM_TENANT_ID"
-          az account set --subscription "$ARM_SUBSCRIPTION_ID"
-
-          DOMAIN="$TF_VAR_base_domain"
-          RG="$RESOURCE_GROUP"
-          ENV_NAME="$CONTAINER_APP_ENV"
-
-          for svc in $SERVICES; do
-            SUBDOMAIN="${svc%-ms}-api.${DOMAIN}"
-
-            # Idempotent: skip if certificate is already bound (survives repeat runs)
-            BINDING=$(az containerapp hostname list -g "$RG" -n "$svc" --query "[?name=='$SUBDOMAIN'].bindingType" -o tsv 2>/dev/null)
-            if [ "$BINDING" == "SniEnabled" ]; then
-              echo "✓ $SUBDOMAIN already has certificate bound, skipping."
-              continue
-            fi
-
-            # Retry to absorb DNS propagation delay on a fresh apply. The asuid TXT + CNAME
-            # records were just created by Terraform and may not have propagated yet, so a
-            # single destroy->apply run converges without needing a second pipeline run.
-            echo "Binding managed certificate for $SUBDOMAIN on $svc..."
-            BOUND=false
-            for attempt in 1 2 3 4 5 6; do
-              if az containerapp hostname bind \
-                   --hostname "$SUBDOMAIN" \
-                   -g "$RG" \
-                   -n "$svc" \
-                   --environment "$ENV_NAME" \
-                   --validation-method CNAME 2>&1; then
-                BOUND=true
-                echo "✓ Bound $SUBDOMAIN on attempt $attempt"
-                break
-              fi
-              echo "Attempt $attempt failed (likely DNS not propagated yet), waiting 30s..."
-              sleep 30
-            done
-
-            if [ "$BOUND" != "true" ]; then
-              echo "::error::Failed to bind certificate for $SUBDOMAIN after retries"
-              exit 1
-            fi
-          done
+  # NOTE: Custom domain binding (frontend apex + API subdomains + managed certificates) is an
+  # optional, one-time setup handled by infra/scripts/setup-custom-domain.sh — not part of the
+  # regular deploy flow. Most CoreMS deployments run fine on the default Azure hostnames.
 
   deploy-frontend:
     name: Deploy Frontend

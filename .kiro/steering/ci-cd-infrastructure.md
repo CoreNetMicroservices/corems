@@ -126,8 +126,22 @@ Key rules:
 | `ACR_LOGIN_SERVER` | Deploy | Azure Container Registry hostname |
 | `SWA_DEPLOYMENT_TOKEN` | Deploy | Static Web App deployment token |
 | `TERRAFORM_STATE_ACCESS_KEY` | Deploy | Storage account key for TF state |
-| `BASE_DOMAIN` | Deploy | Custom domain (e.g., `core-microservices.com`) |
 | `SONAR_TOKEN` | CI | SonarCloud analysis (optional) |
+
+## Custom Domains (Optional)
+
+Custom domains are **not** part of the deploy pipeline. Most deployments run on the default
+Azure hostnames. To attach a custom domain (frontend apex + `<service>-api.<domain>`
+subdomains with managed TLS certs), run the one-time, idempotent script:
+
+```bash
+BASE_DOMAIN=example.com RESOURCE_GROUP=corems-prod-rg SUBSCRIPTION_ID=<sub-id> \
+  infra/scripts/setup-custom-domain.sh
+```
+
+See `infra/scripts/README.md` for details. This lives outside Terraform because SWA apex
+`dns-txt-token` validation and Container Apps managed-cert IDs can't be expressed cleanly in
+the `azurerm` provider (provider bug #27362).
 
 ### Azure Key Vault (application secrets)
 

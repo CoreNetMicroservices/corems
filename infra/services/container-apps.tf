@@ -26,16 +26,6 @@ locals {
       image_name = "corems-template-ms"
     }
   }
-
-  # Compute all domains from base_domain; override with custom_domains if explicitly set
-  domains = var.base_domain != "" ? {
-    frontend         = var.base_domain
-    user-ms          = "user-api.${var.base_domain}"
-    communication-ms = "communication-api.${var.base_domain}"
-    document-ms      = "document-api.${var.base_domain}"
-    translation-ms   = "translation-api.${var.base_domain}"
-    template-ms      = "template-api.${var.base_domain}"
-  } : var.custom_domains
 }
 
 resource "azurerm_container_app" "services" {

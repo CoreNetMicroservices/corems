@@ -179,44 +179,29 @@ jobs:
           echo "acr_user=$ACR_USER" >> "$GITHUB_OUTPUT"
           echo "acr_pass=$ACR_PASS" >> "$GITHUB_OUTPUT"
 
-      # The job is disposable infrastructure: delete any prior definition and recreate it fresh
-      # so it always runs the currently-deployed image with the current connection string.
-      # (job update has no --set-secrets flag, so recreate is simpler and avoids drift.)
-      - name: (Re)create db-admin job
-        run: |
-          set -euo pipefail
-          JOB="${{ matrix.service }}-dbadmin"
-
-          if az containerapp job show --name "$JOB" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
-            echo "Deleting existing job $JOB"
-            az containerapp job delete --name "$JOB" --resource-group "$RESOURCE_GROUP" --yes >/dev/null
-          fi
-
-          echo "Creating job $JOB"
-          az containerapp job create \
-            --name "$JOB" \
-            --resource-group "$RESOURCE_GROUP" \
-            --environment "$CONTAINER_APP_ENV" \
-            --trigger-type Manual \
-            --replica-timeout 600 \
-            --replica-retry-limit 0 \
-            --parallelism 1 \
-            --replica-completion-count 1 \
-            --cpu 0.5 --memory 1Gi \
-            --image "${{ steps.resolve.outputs.image }}" \
-            --container-name "$JOB" \
-            --registry-server "${{ steps.resolve.outputs.acr }}" \
-            --registry-username "${{ steps.resolve.outputs.acr_user }}" \
-            --registry-password "${{ steps.resolve.outputs.acr_pass }}" \
-            --secrets "db-conn=${{ steps.resolve.outputs.conn }}" \
-            --env-vars "ConnectionStrings__corems=secretref:db-conn" >/dev/null
-
+      # The helper (re)creates the job per operation with the command baked in, starts it, and
+      # waits for completion. The command is baked at create time (not overridden on start),
+      # because overriding --command/--args on `job start` drops the image and fails.
       - name: Migrate
         if: inputs.migrate == true
+        env:
+          CONTAINER_APP_ENV: ${{ env.CONTAINER_APP_ENV }}
+          JOB_IMAGE: ${{ steps.resolve.outputs.image }}
+          JOB_DB_CONN: ${{ steps.resolve.outputs.conn }}
+          ACR_SERVER: ${{ steps.resolve.outputs.acr }}
+          ACR_USER: ${{ steps.resolve.outputs.acr_user }}
+          ACR_PASS: ${{ steps.resolve.outputs.acr_pass }}
         run: bash ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--migrate"
 
       - name: Seed
         if: inputs.seed == true
+        env:
+          CONTAINER_APP_ENV: ${{ env.CONTAINER_APP_ENV }}
+          JOB_IMAGE: ${{ steps.resolve.outputs.image }}
+          JOB_DB_CONN: ${{ steps.resolve.outputs.conn }}
+          ACR_SERVER: ${{ steps.resolve.outputs.acr }}
+          ACR_USER: ${{ steps.resolve.outputs.acr_user }}
+          ACR_PASS: ${{ steps.resolve.outputs.acr_pass }}
         run: bash ./.github/scripts/run-dbadmin-job.sh "${{ matrix.service }}-dbadmin" "${{ steps.resolve.outputs.dll }}" "--seed"
 
       # Delete the job only when everything above succeeded. On failure the job (and its

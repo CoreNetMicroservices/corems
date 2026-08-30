@@ -1,0 +1,114 @@
+name: Deploy Frontend
+
+# Builds the SPA and deploys it to the Azure Static Web App. API base URLs are derived at
+# build time and are NOT hardcoded in the repo (CoreMS is a toolkit — each deployment brings
+# its own domain / hostnames):
+#
+#   base domain provided  -> https://<service>-api.<base-domain>  (matches
+#                            infra/scripts/setup-custom-domain.sh)
+#   base domain empty     -> the service's real Azure Container App ingress FQDN, resolved
+#                            via `az` (works out of the box without a custom domain)
+#
+# Base domain comes from the workflow input, falling back to the repo/environment variable
+# vars.BASE_DOMAIN. It is a public hostname, not a secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_domain:
+        description: 'Custom base domain (e.g. example.com). Leave blank to use raw Azure FQDNs.'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  RESOURCE_GROUP: "corems-prod-rg"
+
+jobs:
+  deploy-frontend:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Resolve API base URLs
+        id: urls
+        run: |
+          set -euo pipefail
+          BASE_DOMAIN="${{ inputs.base_domain || vars.BASE_DOMAIN }}"
+
+          # For a service, echo its API base URL: custom subdomain if a base domain is set,
+          # otherwise the live Container App ingress FQDN.
+          resolve() {
+            local svc="$1"
+            if [ -n "$BASE_DOMAIN" ]; then
+              echo "https://${svc%-ms}-api.${BASE_DOMAIN}"
+            else
+              local fqdn
+              fqdn=$(az containerapp show --name "$svc" --resource-group "$RESOURCE_GROUP" \
+                --query "properties.configuration.ingress.fqdn" -o tsv)
+              if [ -z "$fqdn" ]; then
+                echo "::error::No ingress FQDN for '$svc' and no base_domain provided." >&2
+                return 1
+              fi
+              echo "https://$fqdn"
+            fi
+          }
+
+          if [ -n "$BASE_DOMAIN" ]; then
+            APP_URL="https://${BASE_DOMAIN}"
+          else
+            # No custom domain: point the app base at the Static Web App's default hostname.
+            SWA_HOST=$(az staticwebapp show --name "$RESOURCE_GROUP-swa" --resource-group "$RESOURCE_GROUP" \
+              --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+            APP_URL="${SWA_HOST:+https://$SWA_HOST}"
+          fi
+
+          {
+            echo "app=$APP_URL"
+            echo "user=$(resolve user-ms)"
+            echo "communication=$(resolve communication-ms)"
+            echo "document=$(resolve document-ms)"
+            echo "translation=$(resolve translation-ms)"
+            echo "template=$(resolve template-ms)"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved (base_domain='${BASE_DOMAIN:-<none>}'):"
+          tail -n 6 "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install and Build
+        working-directory: frontend
+        env:
+          REACT_APP_BASE_URL: ${{ steps.urls.outputs.app }}
+          REACT_COREMS_BASE_URL: ${{ steps.urls.outputs.user }}
+          REACT_USER_MS_BASE_URL: ${{ steps.urls.outputs.user }}
+          REACT_COMMUNICATION_MS_BASE_URL: ${{ steps.urls.outputs.communication }}
+          REACT_DOCUMENT_MS_BASE_URL: ${{ steps.urls.outputs.document }}
+          REACT_TRANSLATION_MS_BASE_URL: ${{ steps.urls.outputs.translation }}
+          REACT_TEMPLATE_MS_BASE_URL: ${{ steps.urls.outputs.template }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          action: upload
+          app_location: frontend
+          output_location: dist

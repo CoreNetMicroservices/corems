@@ -2,8 +2,11 @@
 import { APP_BASE_URL } from "@/config";
 import { APP_ROUTES } from "@/app/router/routes";
 
-const CORE_MS_MS_BASE_URL = import.meta.env.REACT_COREMS_BASE_URL;
-let userMsUrl = import.meta.env.REACT_USER_MS_BASE_URL;
+// @ts-expect-error _env_ is injected at runtime for environment config
+const env = window._env_ || {};
+
+const CORE_MS_MS_BASE_URL = env.REACT_COREMS_BASE_URL || import.meta.env.REACT_COREMS_BASE_URL;
+let userMsUrl = env.REACT_USER_MS_BASE_URL || import.meta.env.REACT_USER_MS_BASE_URL;
 if (userMsUrl === undefined || userMsUrl === "") {
   userMsUrl = CORE_MS_MS_BASE_URL;
 }

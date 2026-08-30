@@ -177,31 +177,6 @@ jobs:
   # NOTE: Custom domain binding (frontend apex + API subdomains + managed certificates) is an
   # optional, one-time setup handled by infra/scripts/setup-custom-domain.sh — not part of the
   # regular deploy flow. Most CoreMS deployments run fine on the default Azure hostnames.
-
-  deploy-frontend:
-    name: Deploy Frontend
-    runs-on: ubuntu-latest
-    needs: deploy-infrastructure
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install and Build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
-      - name: Deploy to Static Web App
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: upload
-          app_location: frontend
-          output_location: dist
+  #
+  # The frontend is deployed by its own workflow (.github/workflows/deploy-frontend.yml) so it
+  # can be released independently and derive its API URLs from the target domain / FQDNs.

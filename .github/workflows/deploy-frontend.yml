@@ -105,10 +105,15 @@ jobs:
           npm ci
           npm run build
 
+      # Deploy the dist/ we just built. skip_app_build stops the action's Oryx build from
+      # re-running npm build WITHOUT our injected REACT_* vars (which was baking empty URLs and
+      # sending API calls to the SPA origin). With skip_app_build, app_location IS the built
+      # output directory.
       - name: Deploy to Static Web App
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
           action: upload
-          app_location: frontend
-          output_location: dist
+          app_location: frontend/dist
+          skip_app_build: true
+          skip_api_build: true

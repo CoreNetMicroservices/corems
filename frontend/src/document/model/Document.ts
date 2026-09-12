@@ -1,12 +1,12 @@
 export enum Visibility {
-  PUBLIC = "PUBLIC",
-  PRIVATE = "PRIVATE",
-  BY_LINK = "BY_LINK",
+  PUBLIC = "Public",
+  PRIVATE = "Private",
+  BY_LINK = "ByLink",
 }
 
 export enum UploadedByType {
-  USER = "USER",
-  SYSTEM = "SYSTEM",
+  USER = "User",
+  SYSTEM = "System",
 }
 
 export interface Document {
@@ -26,7 +26,7 @@ export interface Document {
   updatedAt: string;
   checksum: string;
   description?: string;
-  tags?: string; // Comma-separated string
+  tags?: string[];
   viewUrl?: string; // Full URL to view the document inline
   downloadUrl?: string; // Full URL to download the document
   deleted: boolean;
@@ -51,16 +51,31 @@ export interface UploadBase64Request extends DocumentUploadMetadata {
 export interface DocumentUpdateRequest {
   name?: string;
   description?: string;
-  tags?: string;
+  tags?: string[];
   visibility?: Visibility;
 }
 
 export interface GenerateLinkRequest {
-  expiresInHours?: number;
+  expiresInMinutes?: number;
 }
 
 export interface LinkResponse {
   token: string;
-  url: string;
+  infoUrl: string;
+  viewUrl: string;
+  downloadUrl: string;
   expiresAt: string;
+}
+
+export interface DocumentLinkInfo {
+  id: number;
+  infoUrl: string;
+  viewUrl: string;
+  downloadUrl: string;
+  expiresAt: string;
+  isRevoked: boolean;
+  revokedAt: string | null;
+  accessCount: number;
+  lastAccessedAt: string | null;
+  createdAt: string;
 }

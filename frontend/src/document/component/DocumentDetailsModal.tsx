@@ -6,6 +6,7 @@ import { ModalDialog } from "@/common/component/ModalDialog";
 import { updateDocument } from "@/document/store/DocumentState";
 import { Document, Visibility, UploadedByType } from "@/document/model/Document";
 import { useMessageState } from "@/common/utils/api/ApiResponseHandler";
+import { AlertMessage } from "@/common/component/ApiResponseAlert";
 import { formatDate } from "@/common/utils/DateUtils";
 import { resolveUserNames } from "@/user/utils/UserApi";
 import { getDocumentDownloadUrl } from "@/document/store/DocumentState";
@@ -39,7 +40,7 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
 
-  const { handleResponse } = useMessageState();
+  const { success, initialErrorMessage, errors, handleResponse } = useMessageState();
 
   useEffect(() => {
     if (document) {
@@ -50,7 +51,7 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
       setEditForm({
         name: document.name,
         description: document.description || "",
-        tags: document.tags || "",
+        tags: (document.tags || []).join(", "),
         visibility: document.visibility,
       });
 
@@ -89,7 +90,15 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
 
   async function handleSave() {
     if (!document) return;
-    const result = await updateDocument(document.uuid, editForm);
+    const result = await updateDocument(document.uuid, {
+      name: editForm.name,
+      description: editForm.description,
+      visibility: editForm.visibility,
+      tags: editForm.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0),
+    });
     handleResponse(
       result,
       t("document.updateFailed", "Failed to update document"),
@@ -109,7 +118,7 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
         setEditForm({
           name: document.name,
           description: document.description || "",
-          tags: document.tags || "",
+          tags: (document.tags || []).join(", "),
           visibility: document.visibility,
         });
       }
@@ -224,6 +233,11 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
     >
       {document && (
         <>
+          <AlertMessage
+            success={success}
+            initialErrorMessage={initialErrorMessage}
+            errors={errors}
+          />
           {previewUrl && (
             <div className="mb-3">
               {document.contentType.startsWith("image/") ? (
@@ -380,7 +394,7 @@ export const DocumentDetailsModal: React.FC<DocumentDetailsModalProps> = ({
                 <p className="mb-2">
                   <strong>{t("document.tags", "Tags")}:</strong>{" "}
                   {document.tags && document.tags.length > 0 ? (
-                    (Array.isArray(document.tags) ? document.tags : document.tags.split(",")).map((tag: string) => (
+                    document.tags.map((tag: string) => (
                       <Badge key={tag} bg="secondary" className="me-1">
                         {tag.trim()}
                       </Badge>

@@ -14,6 +14,7 @@ import {
   DocumentUpdateRequest,
   GenerateLinkRequest,
   LinkResponse,
+  DocumentLinkInfo,
 } from "@/document/model/Document";
 
 const documentMsApi = new CoreMsApi({ baseURL: DOCUMENT_MS_BASE_URL });
@@ -53,7 +54,7 @@ export async function uploadDocumentMultipart(
   if (metadata?.tags && metadata.tags.length > 0) {
     formData.append("tags", metadata.tags.join(","));
   }
-  if (metadata?.confirmReplace !== undefined) formData.append("confirmReplace", String(metadata.confirmReplace));
+  if (metadata?.confirmReplace !== undefined) formData.append("replace", String(metadata.confirmReplace));
 
   return await documentMsApi.apiRequest<Document>(
     HttpMethod.POST,
@@ -86,7 +87,7 @@ export async function updateDocument(
   request: DocumentUpdateRequest
 ): Promise<CoreMsApiResonse<Document>> {
   return await documentMsApi.apiRequest<Document>(
-    HttpMethod.PATCH,
+    HttpMethod.PUT,
     `/api/documents/${uuid}`,
     request
   );
@@ -109,8 +110,27 @@ export async function generateDocumentAccessLink(
 ): Promise<CoreMsApiResonse<LinkResponse>> {
   return await documentMsApi.apiRequest<LinkResponse>(
     HttpMethod.POST,
-    `/api/documents/${uuid}/generate-link`,
+    `/api/documents/${uuid}/link`,
     request
+  );
+}
+
+export async function listDocumentAccessLinks(
+  uuid: string
+): Promise<CoreMsApiResonse<DocumentLinkInfo[]>> {
+  return await documentMsApi.apiRequest<DocumentLinkInfo[]>(
+    HttpMethod.GET,
+    `/api/documents/${uuid}/links`
+  );
+}
+
+export async function revokeDocumentAccessLink(
+  uuid: string,
+  linkId: number
+): Promise<CoreMsApiResonse<ApiSuccessfulResponse>> {
+  return await documentMsApi.apiRequest<ApiSuccessfulResponse>(
+    HttpMethod.DELETE,
+    `/api/documents/${uuid}/links/${linkId}`
   );
 }
 
@@ -122,4 +142,9 @@ export function getDocumentDownloadUrl(uuid: string): string {
 export function getPublicDocumentUrl(uuid: string): string {
   const baseUrl = DOCUMENT_MS_BASE_URL;
   return `${baseUrl}/api/public/documents/${uuid}/download`;
+}
+
+export function getPublicDocumentViewUrl(uuid: string): string {
+  const baseUrl = DOCUMENT_MS_BASE_URL;
+  return `${baseUrl}/api/public/documents/${uuid}/view`;
 }

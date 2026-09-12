@@ -34,6 +34,7 @@ public class DocumentService(
     public async Task<DocumentDto> UploadAsync(Stream fileStream, string originalFilename, long size, string contentType, UploadDocumentRequest request, CancellationToken ct = default)
     {
         var currentUser = currentUserService.GetCurrentUserUuid();
+        var ownerUser = ResolveOwner(request.OwnerUserId, currentUser);
         var extension = ExtractExtension(originalFilename);
 
         ValidateFileSize(size);
@@ -44,7 +45,7 @@ public class DocumentService(
 
         if (request.Replace)
         {
-            var existing = await documentRepository.GetByUserIdAndFilenameAsync(currentUser, originalFilename, ct);
+            var existing = await documentRepository.GetByUserIdAndFilenameAsync(ownerUser, originalFilename, ct);
             if (existing is not null)
             {
                 try
@@ -60,7 +61,7 @@ public class DocumentService(
             }
         }
 
-        var objectKey = GenerateObjectKey(currentUser, originalFilename);
+        var objectKey = GenerateObjectKey(ownerUser, originalFilename);
 
         try
         {
@@ -74,7 +75,7 @@ public class DocumentService(
 
         var entity = new DocumentEntity
         {
-            UserId = currentUser,
+            UserId = ownerUser,
             Name = request.Name ?? Path.GetFileNameWithoutExtension(originalFilename),
             OriginalFilename = originalFilename,
             Size = size,
@@ -122,7 +123,8 @@ public class DocumentService(
             request.Description,
             request.Visibility,
             request.Tags,
-            request.Replace
+            request.Replace,
+            request.OwnerUserId
         );
 
         return await UploadAsync(stream, request.FileName, fileBytes.Length, contentType, uploadRequest, ct);
@@ -183,6 +185,18 @@ public class DocumentService(
         if (roles.Contains(CoreMsRoles.DocumentMsAdmin) || roles.Contains(CoreMsRoles.SuperAdmin)
             || roles.Contains(CoreMsRoles.CommunicationMsAdmin))
             return;
+
+        throw ServiceException.Of(DocumentServiceErrors.DocumentAccessDenied);
+    }
+
+    private Guid ResolveOwner(Guid? requestedOwner, Guid currentUser)
+    {
+        if (requestedOwner is null || requestedOwner == Guid.Empty || requestedOwner == currentUser)
+            return currentUser;
+
+        var roles = currentUserService.GetCurrentUserRoles();
+        if (roles.Contains(CoreMsRoles.DocumentMsAdmin) || roles.Contains(CoreMsRoles.SuperAdmin))
+            return requestedOwner.Value;
 
         throw ServiceException.Of(DocumentServiceErrors.DocumentAccessDenied);
     }
@@ -364,6 +378,7 @@ public class DocumentService(
         {
             DocumentUuid = uuid,
             TokenHash = tokenHash,
+            Token = token,
             CreatedBy = currentUser,
             ExpiresAt = expiresAt,
             CreatedAt = DateTime.UtcNow
@@ -372,9 +387,67 @@ public class DocumentService(
         documentAccessTokenRepository.Add(accessToken);
         await documentAccessTokenRepository.SaveChangesAsync(ct);
 
-        var url = $"{_documentOptions.BaseUrl}/api/public/documents/link/{token}";
+        return new DocumentLinkDto(
+            token,
+            BuildLinkUrl(token, null),
+            BuildLinkUrl(token, "view"),
+            BuildLinkUrl(token, "download"),
+            expiresAt);
+    }
 
-        return new DocumentLinkDto(token, url, expiresAt);
+    private string BuildLinkUrl(string token, string? action)
+    {
+        var basePath = $"{_documentOptions.BaseUrl}/api/public/documents/link/{token}";
+        return action is null ? basePath : $"{basePath}/{action}";
+    }
+
+    public async Task<List<DocumentLinkInfoDto>> ListAccessLinksAsync(Guid uuid, CancellationToken ct = default)
+    {
+        var entity = await documentRepository.GetByUuidAsync(uuid, ct)
+            ?? throw ServiceException.Of(DocumentServiceErrors.DocumentNotFound);
+
+        EnsureLinkManagementAllowed(entity);
+
+        var tokens = await documentAccessTokenRepository.GetByDocumentUuidAsync(uuid, ct);
+        return tokens.Select(t => new DocumentLinkInfoDto(
+            t.Id,
+            BuildLinkUrl(t.Token, null),
+            BuildLinkUrl(t.Token, "view"),
+            BuildLinkUrl(t.Token, "download"),
+            t.ExpiresAt, t.IsRevoked, t.RevokedAt, t.AccessCount, t.LastAccessedAt, t.CreatedAt)).ToList();
+    }
+
+    public async Task RevokeAccessLinkAsync(Guid uuid, long linkId, CancellationToken ct = default)
+    {
+        var entity = await documentRepository.GetByUuidAsync(uuid, ct)
+            ?? throw ServiceException.Of(DocumentServiceErrors.DocumentNotFound);
+
+        EnsureLinkManagementAllowed(entity);
+
+        var token = await documentAccessTokenRepository.GetByIdAndDocumentAsync(linkId, uuid, ct)
+            ?? throw ServiceException.Of(DocumentServiceErrors.DocumentNotFound);
+
+        if (token.IsRevoked)
+            return;
+
+        token.IsRevoked = true;
+        token.RevokedBy = currentUserService.GetCurrentUserUuid();
+        token.RevokedAt = DateTime.UtcNow;
+        documentAccessTokenRepository.Update(token);
+        await documentAccessTokenRepository.SaveChangesAsync(ct);
+    }
+
+    private void EnsureLinkManagementAllowed(DocumentEntity entity)
+    {
+        var currentUser = currentUserService.GetCurrentUserUuid();
+        if (entity.UserId == currentUser)
+            return;
+
+        var roles = currentUserService.GetCurrentUserRoles();
+        if (roles.Contains(CoreMsRoles.DocumentMsAdmin) || roles.Contains(CoreMsRoles.SuperAdmin))
+            return;
+
+        throw ServiceException.Of(DocumentServiceErrors.DocumentAccessDenied);
     }
 
     internal static string ComputeTokenHash(string token)

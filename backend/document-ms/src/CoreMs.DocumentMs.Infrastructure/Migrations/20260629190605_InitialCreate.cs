@@ -24,6 +24,7 @@ namespace CoreMs.DocumentMs.Infrastructure.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityAlwaysColumn),
                     DocumentUuid = table.Column<Guid>(type: "uuid", nullable: false),
                     TokenHash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Token = table.Column<string>(type: "text", nullable: false, defaultValue: ""),
                     CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsRevoked = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),

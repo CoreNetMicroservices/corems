@@ -7,5 +7,6 @@ public record UploadDocumentRequest(
     string? Description,
     DocumentVisibility? Visibility,
     List<string>? Tags,
-    bool Replace = false
+    bool Replace = false,
+    Guid? OwnerUserId = null
 );

@@ -16,6 +16,7 @@ public class DocumentAccessTokenEntityConfiguration : IEntityTypeConfiguration<D
 
         builder.Property(e => e.DocumentUuid).IsRequired();
         builder.Property(e => e.TokenHash).IsRequired().HasMaxLength(128);
+        builder.Property(e => e.Token).IsRequired().HasDefaultValue(string.Empty);
         builder.Property(e => e.CreatedBy).IsRequired();
         builder.Property(e => e.ExpiresAt).IsRequired();
         builder.Property(e => e.IsRevoked).IsRequired().HasDefaultValue(false);

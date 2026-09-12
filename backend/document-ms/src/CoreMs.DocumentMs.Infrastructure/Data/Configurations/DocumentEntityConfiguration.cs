@@ -26,8 +26,12 @@ public class DocumentEntityConfiguration : IEntityTypeConfiguration<DocumentEnti
         builder.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(e => e.Bucket).IsRequired().HasMaxLength(100);
         builder.Property(e => e.ObjectKey).IsRequired().HasMaxLength(500);
-        builder.Property(e => e.Visibility).IsRequired().HasDefaultValue(DocumentVisibility.Private);
-        builder.Property(e => e.UploadedByType).IsRequired().HasDefaultValue(UploadedByType.User);
+        builder.Property(e => e.Visibility).IsRequired()
+            .HasDefaultValue(DocumentVisibility.Private)
+            .HasSentinel((DocumentVisibility)(-1));
+        builder.Property(e => e.UploadedByType).IsRequired()
+            .HasDefaultValue(UploadedByType.User)
+            .HasSentinel((UploadedByType)(-1));
         builder.Property(e => e.Checksum).HasMaxLength(128);
         builder.Property(e => e.Description).HasMaxLength(2000);
         builder.Property(e => e.Version).IsRequired().HasDefaultValue(1);

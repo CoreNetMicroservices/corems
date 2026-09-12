@@ -29,6 +29,7 @@ public class DocumentsListController(DocumentService documentService) : Controll
         [FromForm] string? visibility,
         [FromForm] string? tags,
         [FromForm] bool replace = false,
+        [FromForm] Guid? ownerUserId = null,
         CancellationToken ct = default)
     {
         var visibilityEnum = visibility is not null
@@ -37,7 +38,7 @@ public class DocumentsListController(DocumentService documentService) : Controll
 
         var tagsList = tags?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
-        var request = new UploadDocumentRequest(name, description, visibilityEnum, tagsList, replace);
+        var request = new UploadDocumentRequest(name, description, visibilityEnum, tagsList, replace, ownerUserId);
 
         await using var stream = file.OpenReadStream();
         var result = await documentService.UploadAsync(stream, file.FileName, file.Length, file.ContentType, request, ct);

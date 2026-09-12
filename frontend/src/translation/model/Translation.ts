@@ -10,11 +10,14 @@ export interface RealmLanguages {
 }
 
 export interface TranslationAdminView {
-  translations: Record<string, string>;
+  id: number;
+  realm: string;
+  lang: string;
+  data: Record<string, string>;
   updatedAt: string;
-  updatedBy: string;
+  updatedBy: string | null;
 }
 
 export interface TranslationUpdateRequest {
-  translations: Record<string, string>;
+  data: Record<string, string>;
 }

@@ -45,7 +45,8 @@ dotnet run --project user-ms/src/CoreMs.UserMs.Api -- --seed
 ```
 
 Test credentials (password: `Password123!`):
-- `admin@corems.local` — all admin roles
+- `super@corems.local` — super admin
+- `admin@corems.local` — some admin roles
 - `alice.johnson@corems.local` — regular user
 
 ## Shared Library API

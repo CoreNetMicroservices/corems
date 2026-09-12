@@ -101,7 +101,9 @@ public class LinkGenerationRestrictionTests
 
         result.Should().NotBeNull();
         result.Token.Should().NotBeNullOrEmpty();
-        result.Url.Should().Contain(result.Token);
+        result.ViewUrl.Should().Contain(result.Token);
+        result.DownloadUrl.Should().Contain(result.Token);
+        result.InfoUrl.Should().Contain(result.Token);
         result.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 

@@ -64,6 +64,12 @@ namespace CoreMs.DocumentMs.Infrastructure.Migrations
                     b.Property<Guid?>("RevokedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(128)

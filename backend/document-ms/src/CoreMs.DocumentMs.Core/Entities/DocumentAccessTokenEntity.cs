@@ -5,6 +5,7 @@ public class DocumentAccessTokenEntity
     public long Id { get; set; }
     public Guid DocumentUuid { get; set; }
     public string TokenHash { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
     public Guid CreatedBy { get; set; }
     public DateTime ExpiresAt { get; set; }
     public bool IsRevoked { get; set; }

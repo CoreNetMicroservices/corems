@@ -6,6 +6,11 @@ var userMs_ = builder.Configuration.GetSection("UserMs");
 var communicationMs_ = builder.Configuration.GetSection("CommunicationMs");
 var documentMs_ = builder.Configuration.GetSection("DocumentMs");
 
+// Local dev fallback so link generation works out of the box without a configured secret.
+var documentLinkSigningKey = documentMs_["DocumentLinkSigningKey"] is { Length: > 0 } key
+    ? key
+    : "dev-only-document-link-signing-key-min-32-chars!!";
+
 // --- Infrastructure ---
 
 var postgres = builder.AddPostgres("postgres", password: postgresPassword, port: 5432)
@@ -51,7 +56,7 @@ var documentMs = builder.AddProject<Projects.CoreMs_DocumentMs_Api>("document-ms
     .WithEnvironment("Storage__Endpoint", minio.GetEndpoint("api"))
     .WithEnvironment("Storage__AccessKey", minioAccessKey)
     .WithEnvironment("Storage__SecretKey", minioSecretKey)
-    .WithEnvironment("Document__LinkSigningKey", documentMs_["DocumentLinkSigningKey"] ?? "");
+    .WithEnvironment("Document__LinkSigningKey", documentLinkSigningKey);
 
 var communicationMs = builder.AddProject<Projects.CoreMs_CommunicationMs_Api>("communication-ms")
     .WithReference(corems)

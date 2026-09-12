@@ -87,4 +87,28 @@ public class DocumentController(DocumentService documentService) : ControllerBas
         var result = await documentService.GenerateAccessLinkAsync(uuid, request, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// List access links generated for a BY_LINK document.
+    /// </summary>
+    [HttpGet("links")]
+    [ProducesResponseType(typeof(List<DocumentLinkInfoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<DocumentLinkInfoDto>>> ListAccessLinks(Guid uuid, CancellationToken ct)
+    {
+        var result = await documentService.ListAccessLinksAsync(uuid, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Revoke an access link.
+    /// </summary>
+    [HttpDelete("links/{linkId:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RevokeAccessLink(Guid uuid, long linkId, CancellationToken ct)
+    {
+        await documentService.RevokeAccessLinkAsync(uuid, linkId, ct);
+        return NoContent();
+    }
 }

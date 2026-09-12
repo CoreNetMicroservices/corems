@@ -62,13 +62,13 @@ export const TranslationEditor: React.FC = () => {
     setIsLoading(false);
 
     if (result.result && result.response) {
-      const translations = result.response.translations;
-      const loadedEntries = Object.entries(translations).map(([key, value]) => ({
+      const data = result.response.data ?? {};
+      const loadedEntries = Object.entries(data).map(([key, value]) => ({
         key,
-        value
+        value: String(value)
       }));
       setEntries(loadedEntries.length > 0 ? loadedEntries : [{ key: '', value: '' }]);
-      setJsonText(JSON.stringify(translations, null, 2));
+      setJsonText(JSON.stringify(data, null, 2));
       setJsonError(null);
     }
   };
@@ -110,7 +110,7 @@ export const TranslationEditor: React.FC = () => {
     }
 
     setIsSaving(true);
-    const result = await updateTranslation(effectiveRealm, effectiveLang, { translations });
+    const result = await updateTranslation(effectiveRealm, effectiveLang, { data: translations });
     setIsSaving(false);
 
     handleResponse(

@@ -12,5 +12,8 @@ public class DocumentAccessTokenRepository(DbContext context) : CrudRepository<D
         => await DbSet.FirstOrDefaultAsync(t => t.TokenHash == tokenHash && t.DocumentUuid == documentUuid, ct);
 
     public virtual async Task<List<DocumentAccessTokenEntity>> GetByDocumentUuidAsync(Guid documentUuid, CancellationToken ct = default)
-        => await DbSet.Where(t => t.DocumentUuid == documentUuid).ToListAsync(ct);
+        => await DbSet.Where(t => t.DocumentUuid == documentUuid).OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+
+    public virtual async Task<DocumentAccessTokenEntity?> GetByIdAndDocumentAsync(long id, Guid documentUuid, CancellationToken ct = default)
+        => await DbSet.FirstOrDefaultAsync(t => t.Id == id && t.DocumentUuid == documentUuid, ct);
 }

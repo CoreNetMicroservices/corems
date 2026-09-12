@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Spinner } from 'react-bootstrap';
 import { Camera } from 'react-bootstrap-icons';
 import { uploadDocumentMultipart } from '@/document/store/DocumentState';
-import { getDocumentDownloadUrl } from '@/document/store/DocumentState';
+import { getPublicDocumentViewUrl } from '@/document/store/DocumentState';
+import { Visibility } from '@/document/model/Document';
 import { useMessageState } from '@/common/utils/api/ApiResponseHandler';
 
 interface ProfileImageUploadProps {
@@ -59,13 +60,13 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({
       
       const uploadResult = await uploadDocumentMultipart(renamedFile, {
         ownerUserId: ownerUserId,
-        visibility: 'PUBLIC',
+        visibility: Visibility.PUBLIC,
         tags: ['profile-picture'],
         confirmReplace: true
       });
 
       if (uploadResult.result && uploadResult.response) {
-        const imageUrl = uploadResult.response.viewUrl || getDocumentDownloadUrl(uploadResult.response.uuid);
+        const imageUrl = getPublicDocumentViewUrl(uploadResult.response.uuid);
         const cacheBustedUrl = `${imageUrl}?t=${Date.now()}`;
         
         await onImageUpdate(cacheBustedUrl);

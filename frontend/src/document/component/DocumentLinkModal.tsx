@@ -1,21 +1,67 @@
-import React, { useState } from "react";
-import { Form, Button, InputGroup, Alert } from "react-bootstrap";
+import React, { useState, useEffect, useCallback } from "react";
+import { Form, Button, InputGroup, Alert, Badge, Spinner, Accordion } from "react-bootstrap";
 import { useTranslation } from "react-i18next";
-import { Clipboard, ClipboardCheck } from "react-bootstrap-icons";
+import { Clipboard, ClipboardCheck, Trash } from "react-bootstrap-icons";
 import { ModalDialog } from "@/common/component/ModalDialog";
 import {
   generateDocumentAccessLink,
   getPublicDocumentUrl,
+  getPublicDocumentViewUrl,
+  listDocumentAccessLinks,
+  revokeDocumentAccessLink,
 } from "@/document/store/DocumentState";
-import { Document, Visibility } from "@/document/model/Document";
+import { Document, Visibility, DocumentLinkInfo } from "@/document/model/Document";
 import { useMessageState } from "@/common/utils/api/ApiResponseHandler";
 import { AlertMessage } from "@/common/component/ApiResponseAlert";
+import { formatDate } from "@/common/utils/DateUtils";
 
 interface DocumentLinkModalProps {
   document: Document | null;
   show: boolean;
   onClose: () => void;
 }
+
+interface CopyFieldProps {
+  label: string;
+  value: string;
+}
+
+const CopyField: React.FC<CopyFieldProps> = ({ label, value }) => {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
+
+  return (
+    <Form.Group className="mb-2">
+      <Form.Label className="small mb-1">{label}</Form.Label>
+      <InputGroup size="sm">
+        <Form.Control type="text" value={value} readOnly className="font-monospace" />
+        <Button variant={copied ? "success" : "outline-secondary"} onClick={handleCopy}>
+          {copied ? (
+            <>
+              <ClipboardCheck className="me-1" />
+              {t("common.copied", "Copied!")}
+            </>
+          ) : (
+            <>
+              <Clipboard className="me-1" />
+              {t("common.copy", "Copy")}
+            </>
+          )}
+        </Button>
+      </InputGroup>
+    </Form.Group>
+  );
+};
 
 export const DocumentLinkModal: React.FC<DocumentLinkModalProps> = ({
   document,
@@ -24,44 +70,45 @@ export const DocumentLinkModal: React.FC<DocumentLinkModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [expiresInHours, setExpiresInHours] = useState<number>(24);
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [existingLinks, setExistingLinks] = useState<DocumentLinkInfo[]>([]);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+  const [revokingId, setRevokingId] = useState<number | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const { initialErrorMessage, errors, handleResponse } = useMessageState();
 
+  const isByLink = document?.visibility === Visibility.BY_LINK;
+  const isPublic = document?.visibility === Visibility.PUBLIC;
+
+  const loadLinks = useCallback(async () => {
+    if (!document || document.visibility !== Visibility.BY_LINK) {
+      setExistingLinks([]);
+      return;
+    }
+    setIsLoadingLinks(true);
+    const result = await listDocumentAccessLinks(document.uuid);
+    setIsLoadingLinks(false);
+    if (result.result && result.response) {
+      setExistingLinks(result.response);
+    }
+  }, [document]);
+
+  useEffect(() => {
+    if (show) {
+      setActiveKey(null);
+      loadLinks();
+    }
+  }, [show, loadLinks]);
+
   const handleGenerate = async () => {
-    if (!document) return;
-
-    // For PUBLIC documents, just show the public URL
-    if (document.visibility === Visibility.PUBLIC) {
-      setGeneratedLink(getPublicDocumentUrl(document.uuid));
-      setIsCopied(false);
-      return;
-    }
-
-    // Check if document visibility is BY_LINK
-    if (document.visibility !== Visibility.BY_LINK) {
-      handleResponse(
-        {
-          result: false,
-          response: null,
-          errors: [
-            {
-              reasonCode: "document.invalid_visibility",
-              description: "Only documents with BY_LINK or PUBLIC visibility can generate access links",
-            },
-          ],
-        },
-        t("document.linkGenerationFailed", "Failed to generate link")
-      );
-      return;
-    }
+    if (!document || !isByLink) return;
 
     setIsGenerating(true);
     const result = await generateDocumentAccessLink(document.uuid, {
-      expiresInHours,
+      expiresInMinutes: expiresInHours * 60,
     });
+    setIsGenerating(false);
 
     handleResponse(
       result,
@@ -70,30 +117,56 @@ export const DocumentLinkModal: React.FC<DocumentLinkModalProps> = ({
     );
 
     if (result.result && result.response) {
-      setGeneratedLink(result.response.url);
-      setIsCopied(false);
+      const refreshed = await listDocumentAccessLinks(document.uuid);
+      if (refreshed.result && refreshed.response) {
+        setExistingLinks(refreshed.response);
+        // Newest link is first (backend orders by createdAt desc) — expand it.
+        if (refreshed.response.length > 0) {
+          setActiveKey(String(refreshed.response[0].id));
+        }
+      }
     }
-
-    setIsGenerating(false);
   };
 
-  const handleCopy = async () => {
-    if (!generatedLink) return;
+  const handleRevoke = async (linkId: number) => {
+    if (!document) return;
+    const confirmed = window.confirm(
+      t(
+        "document.revokeLinkConfirm",
+        "Are you sure you want to revoke this link? Anyone using it will lose access immediately."
+      )
+    );
+    if (!confirmed) return;
 
-    try {
-      await navigator.clipboard.writeText(generatedLink);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
+    setRevokingId(linkId);
+    const result = await revokeDocumentAccessLink(document.uuid, linkId);
+    setRevokingId(null);
+
+    handleResponse(
+      result,
+      t("document.revokeLinkFailed", "Failed to revoke link"),
+      t("document.revokeLinkSuccess", "Link revoked successfully")
+    );
+
+    if (result.result) {
+      await loadLinks();
     }
   };
 
   const handleClose = () => {
-    setGeneratedLink(null);
-    setIsCopied(false);
     setExpiresInHours(24);
+    setActiveKey(null);
     onClose();
+  };
+
+  const getLinkStatus = (link: DocumentLinkInfo) => {
+    if (link.isRevoked) {
+      return <Badge bg="danger">{t("document.linkRevoked", "Revoked")}</Badge>;
+    }
+    if (new Date(link.expiresAt) <= new Date()) {
+      return <Badge bg="secondary">{t("document.linkExpired", "Expired")}</Badge>;
+    }
+    return <Badge bg="success">{t("document.linkActive", "Active")}</Badge>;
   };
 
   const getExpirationPresets = () => [
@@ -108,39 +181,18 @@ export const DocumentLinkModal: React.FC<DocumentLinkModalProps> = ({
     <ModalDialog
       show={show}
       onClose={handleClose}
-      title={t("document.generateLink", "Generate Document Link")}
+      title={t("document.documentLinks", "Document Links")}
       size="lg"
       secondaryText={t("common.close", "Close")}
-      onPrimary={
-        !generatedLink &&
-        (document?.visibility === Visibility.BY_LINK || document?.visibility === Visibility.PUBLIC)
-          ? handleGenerate
-          : undefined
-      }
+      onPrimary={isByLink ? handleGenerate : undefined}
       primaryText={
-        !generatedLink &&
-        (document?.visibility === Visibility.BY_LINK || document?.visibility === Visibility.PUBLIC)
+        isByLink
           ? isGenerating
             ? t("common.generating", "Generating...")
-            : document?.visibility === Visibility.PUBLIC
-            ? t("document.showLink", "Show Link")
             : t("document.generateLink", "Generate Link")
           : undefined
       }
-      footerContent={
-        generatedLink && (
-          <Button
-            variant="outline-primary"
-            onClick={() => {
-              setGeneratedLink(null);
-              setIsCopied(false);
-              setExpiresInHours(24);
-            }}
-          >
-            {t("document.generateAnother", "Generate Another Link")}
-          </Button>
-        )
-      }
+      disablePrimary={isGenerating}
     >
       <AlertMessage initialErrorMessage={initialErrorMessage} errors={errors} />
 
@@ -148,99 +200,134 @@ export const DocumentLinkModal: React.FC<DocumentLinkModalProps> = ({
         <Alert variant="warning">
           {t(
             "document.linkOnlyForByLinkOrPublic",
-            "Links can only be generated for documents with BY_LINK or PUBLIC visibility. This document is PRIVATE.",
-            { visibility: document.visibility }
+            "Links can only be generated for documents with BY_LINK or PUBLIC visibility. This document is PRIVATE."
           )}
         </Alert>
       )}
 
-      {document && document.visibility === Visibility.PUBLIC && !generatedLink && (
-        <Alert variant="info">
-          {t(
-            "document.publicDocumentInfo",
-            "This is a PUBLIC document. Anyone can access it without authentication."
-          )}
-        </Alert>
-      )}
-
-      {document && (document.visibility === Visibility.BY_LINK || document.visibility === Visibility.PUBLIC) && (
+      {document && isPublic && (
         <>
-          {!generatedLink ? (
-            <>
-              {document.visibility === Visibility.BY_LINK && (
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {t("document.expiresIn", "Link Expiration")}
-                  </Form.Label>
-                  <div className="d-flex gap-2 mb-2">
-                    {getExpirationPresets().map((preset) => (
-                      <Button
-                        key={preset.value}
-                        size="sm"
-                        variant={
-                          expiresInHours === preset.value
-                            ? "primary"
-                            : "outline-secondary"
-                        }
-                        onClick={() => setExpiresInHours(preset.value)}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <InputGroup>
-                    <Form.Control
-                      type="number"
-                      value={expiresInHours}
-                      onChange={(e) =>
-                        setExpiresInHours(parseInt(e.target.value) || 24)
-                      }
-                      min={1}
-                      max={8760}
-                    />
-                    <InputGroup.Text>
-                      {t("document.hours", "hours")}
-                    </InputGroup.Text>
-                  </InputGroup>
-                  <Form.Text className="text-muted">
-                    {t(
-                      "document.expiresInHelp",
-                      "Specify how long the link will be valid (1 hour to 1 year)"
-                    )}
-                  </Form.Text>
-                </Form.Group>
+          <Alert variant="info">
+            {t(
+              "document.publicDocumentInfo",
+              "This is a PUBLIC document. Anyone can access it without authentication."
+            )}
+          </Alert>
+          <CopyField
+            label={t("document.viewLink", "View link")}
+            value={getPublicDocumentViewUrl(document.uuid)}
+          />
+          <CopyField
+            label={t("document.downloadLink", "Download link")}
+            value={getPublicDocumentUrl(document.uuid)}
+          />
+        </>
+      )}
+
+      {document && isByLink && (
+        <>
+          <Form.Group className="mb-3">
+            <Form.Label>{t("document.expiresIn", "Link Expiration")}</Form.Label>
+            <div className="d-flex gap-2 mb-2 flex-wrap">
+              {getExpirationPresets().map((preset) => (
+                <Button
+                  key={preset.value}
+                  size="sm"
+                  variant={expiresInHours === preset.value ? "primary" : "outline-secondary"}
+                  onClick={() => setExpiresInHours(preset.value)}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+            <InputGroup>
+              <Form.Control
+                type="number"
+                value={expiresInHours}
+                onChange={(e) => setExpiresInHours(parseInt(e.target.value) || 24)}
+                min={1}
+                max={8760}
+              />
+              <InputGroup.Text>{t("document.hours", "hours")}</InputGroup.Text>
+            </InputGroup>
+            <Form.Text className="text-muted">
+              {t(
+                "document.expiresInHelp",
+                "Specify how long the link will be valid (1 hour to 1 year)"
               )}
-            </>
+            </Form.Text>
+          </Form.Group>
+
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h6 className="mb-0">{t("document.existingLinks", "Existing Links")}</h6>
+            {isLoadingLinks && <Spinner animation="border" size="sm" />}
+          </div>
+
+          {existingLinks.length === 0 ? (
+            !isLoadingLinks && (
+              <p className="text-muted small mb-0">
+                {t("document.noLinks", "No links have been generated yet.")}
+              </p>
+            )
           ) : (
-            <>
-              <Form.Group className="mb-3">
-                <Form.Label>{t("document.accessLink", "Access Link")}</Form.Label>
-                <InputGroup>
-                  <Form.Control
-                    type="text"
-                    value={generatedLink}
-                    readOnly
-                    className="font-monospace"
-                  />
-                  <Button
-                    variant={isCopied ? "success" : "outline-secondary"}
-                    onClick={handleCopy}
-                  >
-                    {isCopied ? (
-                      <>
-                        <ClipboardCheck className="me-1" />
-                        {t("common.copied", "Copied!")}
-                      </>
-                    ) : (
-                      <>
-                        <Clipboard className="me-1" />
-                        {t("common.copy", "Copy")}
-                      </>
-                    )}
-                  </Button>
-                </InputGroup>
-              </Form.Group>
-            </>
+            <Accordion activeKey={activeKey} onSelect={(k) => setActiveKey(k as string | null)}>
+              {existingLinks.map((link) => {
+                const isActive = !link.isRevoked && new Date(link.expiresAt) > new Date();
+                return (
+                  <Accordion.Item eventKey={String(link.id)} key={link.id}>
+                    <Accordion.Header>
+                      <span className="d-flex align-items-center gap-2 flex-wrap">
+                        {getLinkStatus(link)}
+                        <span className="small text-muted">
+                          {t("document.created", "Created")}: {formatDate(link.createdAt)}
+                        </span>
+                        <span className="small text-muted">
+                          {t("document.uses", "Uses")}: {link.accessCount}
+                        </span>
+                      </span>
+                    </Accordion.Header>
+                    <Accordion.Body>
+                      <p className="small mb-2 text-muted">
+                        {t("document.expires", "Expires")}: {formatDate(link.expiresAt)}
+                      </p>
+                      {isActive ? (
+                        <>
+                          <CopyField label={t("document.viewLink", "View link")} value={link.viewUrl} />
+                          <CopyField
+                            label={t("document.downloadLink", "Download link")}
+                            value={link.downloadUrl}
+                          />
+                          <CopyField label={t("document.infoLink", "Info link")} value={link.infoUrl} />
+                          <div className="text-end mt-2">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleRevoke(link.id)}
+                              disabled={revokingId === link.id}
+                            >
+                              {revokingId === link.id ? (
+                                <Spinner animation="border" size="sm" />
+                              ) : (
+                                <>
+                                  <Trash className="me-1" />
+                                  {t("document.revoke", "Revoke")}
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="small text-muted mb-0">
+                          {link.isRevoked
+                            ? t("document.linkRevokedInfo", "This link has been revoked and no longer works.")
+                            : t("document.linkExpiredInfo", "This link has expired and no longer works.")}
+                        </p>
+                      )}
+                    </Accordion.Body>
+                  </Accordion.Item>
+                );
+              })}
+            </Accordion>
           )}
         </>
       )}
